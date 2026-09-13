@@ -1,0 +1,788 @@
+# tpt-av-control
+
+**A pure-Rust, real-time safe studio protocol suite. OSC, MIDI 2.0, DMX, and hardware control. The integration layer of the TPT AV stack.**
+
+**License:** MIT  
+**Status:** Early-stage / Pre-1.0  
+**Ecosystem:** [TPT Solutions Open Source](https://opensource.tptsolutions.co.nz/)
+
+---
+
+## 1. Vision & Philosophy
+
+`tpt-av-control` is the **protocol and hardware integration layer** of the TPT AV Stack. It provides pure-Rust, real-time safe implementations of studio control protocols used in audio, video, lighting, and live performance.
+
+The current Rust ecosystem has **fragmented, incomplete, or blocking implementations** of these protocols:
+- `rosc` (OSC) — Basic implementation, not optimized for real-time
+- `midir` (MIDI) — Good I/O, but MIDI 1.0 only, no UMP support
+- DMX/Art-Net crates — Minimal, not production-grade
+- No unified protocol suite that works together in real-time audio/video applications
+
+`tpt-av-control` fills this gap by providing:
+1. **Unified protocol suite** — OSC, MIDI 2.0, DMX, Art-Net, sACN in one cohesive library
+2. **Real-time safe** — Zero allocation, zero blocking in protocol processing
+3. **MIDI 2.0 / UMP native** — Full support for Universal MIDI Packet, the next generation of MIDI
+4. **Hardware control surfaces** — Integration with physical controllers (mixers, stream decks, etc.)
+5. **Strict MIT licensing** — Zero copyleft contamination
+
+### Core Tenets
+
+1. **Pure Rust, Zero External Protocol Dependencies:** No C/C++ bindings. All protocol implementations are written from the specification in pure Rust.
+2. **Real-Time Safe:** Protocol parsing and message handling are allocation-free and lock-free. Safe to call from audio callbacks.
+3. **Async-First Architecture:** Network protocols (OSC, Art-Net, sACN) use async I/O for maximum throughput.
+4. **Hardware Abstraction:** Unified API for different hardware control surfaces.
+5. **Pure MIT Licensing:** No GPL/LGPL/MPL dependencies. Enforced via `cargo-deny` in CI.
+6. **Composable Architecture:** Each sub-crate is independently useful. A developer can use just OSC, just MIDI, or just DMX.
+
+---
+
+## 2. Ecosystem Integration
+
+`tpt-av-control` sits in the **Integration Layer** of the TPT AV Stack, providing external control and hardware integration for all processing engines.
+
+| Crate | Role | Relationship to `tpt-av-control` |
+| :--- | :--- | :--- |
+| **`tpt-audio`** | Audio processing, timeline | Receives MIDI/OSC control messages to adjust parameters (volume, pan, effects). |
+| **`tpt-visual`** | Video processing | Receives MIDI/OSC control messages for video effects, transitions, color grading. |
+| **`tpt-av-control`** | **Studio protocols (this repo)** | Provides OSC, MIDI, DMX, and hardware control integration. |
+| **External Hardware** | Physical controllers | Sends MIDI/OSC/DMX messages to control the TPT stack. |
+
+### Data Flow
+
+External Hardware (MIDI controller, lighting console, OSC app)
+↓
+tpt-av-control (parses OSC/MIDI/DMX messages)
+↓
+Application (maps messages to parameters)
+↓
+tpt-audio / tpt-visual (applies parameter changes in real-time)
+
+
+---
+
+## 3. Repository Architecture (Cargo Workspace)
+
+All sub-crates share the `tpt-av-control-` prefix for ecosystem coherence and clean namespace resolution on crates.io.
+
+```text
+tpt-av-control/                        # GitHub Repository / Workspace Root
+├── Cargo.toml                         # Workspace manifest
+├── deny.toml                          # cargo-deny license audit config
+├── LICENSE-MIT
+├── README.md
+├── DESIGN.md                          # This file
+│
+├── tpt-av-control-utils/              # Shared types, error handling
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── message.rs                 # Generic message types
+│   │   ├── time.rs                    # Timecode and timing types
+│   │   ├── parameter.rs               # Parameter mapping types
+│   │   └── error.rs                   # `ControlError` enum
+│   └── Cargo.toml
+│
+├── tpt-av-control-osc/                # Open Sound Control (OSC)
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── message.rs                 # OSC message parsing and serialization
+│   │   ├── bundle.rs                  # OSC bundle handling
+│   │   ├── address.rs                 # OSC address pattern matching
+│   │   ├── types.rs                   # OSC type tags (i32, f32, string, blob)
+│   │   ├── server.rs                  # OSC server (UDP/TCP)
+│   │   ├── client.rs                  # OSC client (UDP/TCP)
+│   │   └── dispatch.rs                # Message routing and dispatch
+│   ├── Cargo.toml
+│   └── tests/
+│
+├── tpt-av-control-midi/               # MIDI 1.0 and MIDI 2.0 (UMP)
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── midi1.rs                   # MIDI 1.0 message parsing
+│   │   ├── ump.rs                     # Universal MIDI Packet (MIDI 2.0)
+│   │   ├── messages.rs                # Note, CC, Pitch Bend, Program Change, etc.
+│   │   ├── sysex.rs                   # System Exclusive messages
+│   │   ├── device.rs                  # MIDI device enumeration and I/O
+│   │   ├── port.rs                    # MIDI port management
+│   │   ├── clock.rs                   # MIDI clock and transport
+│   │   └── mapping.rs                 # MIDI to parameter mapping
+│   ├── Cargo.toml
+│   └── tests/
+│
+├── tpt-av-control-dmx/                # DMX512, Art-Net, sACN
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── dmx.rs                     # DMX512 universe data
+│   │   ├── artnet.rs                  # Art-Net protocol (UDP)
+│   │   ├── sacn.rs                    # sACN (E1.31) protocol (UDP)
+│   │   ├── universe.rs                # DMX universe management
+│   │   ├── server.rs                  # DMX/Art-Net/sACN server
+│   │   ├── client.rs                  # DMX/Art-Net/sACN client
+│   │   └── fixture.rs                 # Lighting fixture definitions
+│   ├── Cargo.toml
+│   └── tests/
+│
+├── tpt-av-control-surface/            # Hardware control surface integration
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── surface.rs                 # Control surface trait
+│   │   ├── surfaces/                  # Specific hardware implementations
+│   │   │   ├── generic_midi.rs        # Generic MIDI controller
+│   │   │   ├── behringer_x32.rs       # Behringer X32/M32 console
+│   │   │   ├── elgato_streamdeck.rs   # Elgato Stream Deck
+│   │   │   └── custom.rs             # Custom surface definition
+│   │   ├── mapping.rs                 # Surface to parameter mapping
+│   │   └── feedback.rs                # LED/button feedback
+│   ├── Cargo.toml
+│   └── tests/
+│
+├── tpt-av-control-webrtc/             # WebRTC data channels (future)
+│   ├── src/
+│   ├── Cargo.toml
+│   └── tests/
+│
+└── examples/                          # Demos and integration tests
+    ├── osc_server.rs                  # OSC server receiving messages
+    ├── midi_controller.rs             # MIDI controller integration
+    ├── dmx_lighting.rs                # DMX lighting control
+    └── control_surface.rs             # Hardware control surface demo
+
+4. Core API Design
+4.1. OSC Implementation (tpt-av-control-osc)
+
+/// An OSC message.
+pub struct OscMessage {
+    /// OSC address pattern (e.g., "/track/1/volume").
+    pub address: String,
+    /// Type tags (e.g., "ff" for two floats).
+    pub type_tags: String,
+    /// Arguments (i32, f32, String, Vec<u8>).
+    pub arguments: Vec<OscArg>,
+}
+
+/// An OSC argument value.
+pub enum OscArg {
+    Int(i32),
+    Float(f32),
+    String(String),
+    Blob(Vec<u8>),
+    Long(i64),
+    Double(f64),
+    Bool(bool),
+    Nil,
+    Inf,
+}
+
+/// An OSC bundle (collection of messages with a timestamp).
+pub struct OscBundle {
+    /// NTP timestamp (optional, None = immediate).
+    pub timestamp: Option<u64>,
+    /// Messages in the bundle.
+    pub messages: Vec<OscMessage>,
+}
+
+/// OSC server for receiving messages.
+pub struct OscServer {
+    /// UDP socket.
+    socket: UdpSocket,
+    /// Message handler callback.
+    handler: Box<dyn FnMut(OscMessage) + Send>,
+}
+
+impl OscServer {
+    /// Creates a new OSC server listening on the specified port.
+    pub fn new(port: u16) -> Result<Self, ControlError>;
+
+    /// Starts receiving messages (blocking).
+    pub fn run(&mut self) -> Result<(), ControlError>;
+
+    /// Starts receiving messages (async).
+    pub async fn run_async(&mut self) -> Result<(), ControlError>;
+}
+
+/// OSC client for sending messages.
+pub struct OscClient {
+    /// UDP socket.
+    socket: UdpSocket,
+    /// Target address.
+    target: SocketAddr,
+}
+
+impl OscClient {
+    /// Creates a new OSC client.
+    pub fn new(target: SocketAddr) -> Result<Self, ControlError>;
+
+    /// Sends an OSC message.
+    pub fn send(&mut self, message: &OscMessage) -> Result<(), ControlError>;
+
+    /// Sends an OSC bundle.
+    pub fn send_bundle(&mut self, bundle: &OscBundle) -> Result<(), ControlError>;
+}
+
+/// OSC address pattern matcher.
+pub struct OscAddressMatcher {
+    /// Pattern (e.g., "/track/*/volume").
+    pattern: String,
+}
+
+impl OscAddressMatcher {
+    /// Creates a new address matcher.
+    pub fn new(pattern: &str) -> Self;
+
+    /// Checks if an address matches the pattern.
+    pub fn matches(&self, address: &str) -> bool;
+}
+
+4.2. MIDI Implementation (tpt-av-control-midi)
+
+/// MIDI 1.0 message.
+pub enum Midi1Message {
+    NoteOff { channel: u8, note: u8, velocity: u8 },
+    NoteOn { channel: u8, note: u8, velocity: u8 },
+    PolyphonicKeyPressure { channel: u8, note: u8, pressure: u8 },
+    ControlChange { channel: u8, controller: u8, value: u8 },
+    ProgramChange { channel: u8, program: u8 },
+    ChannelPressure { channel: u8, pressure: u8 },
+    PitchBendChange { channel: u8, value: u16 },
+    SystemExclusive(Vec<u8>),
+    TimeCodeQuarterFrame(u8),
+    SongPositionPointer(u16),
+    SongSelect(u8),
+    TuneRequest,
+    TimingClock,
+    Start,
+    Continue,
+    Stop,
+    ActiveSensing,
+    SystemReset,
+}
+
+/// Universal MIDI Packet (MIDI 2.0).
+pub struct Ump {
+    /// Raw 128-bit packet.
+    pub data: [u32; 4],
+}
+
+impl Ump {
+    /// Parses a UMP packet.
+    pub fn parse(data: [u32; 4]) -> Result<Midi2Message, ControlError>;
+
+    /// Creates a UMP packet from a MIDI 2.0 message.
+    pub fn from_message(message: &Midi2Message) -> Self;
+}
+
+/// MIDI 2.0 message.
+pub enum Midi2Message {
+    Utility(UtilityMessage),
+    SystemCommon(SystemCommonMessage),
+    SystemExclusive(SysExMessage),
+    Midi1ChannelVoice(Midi1Message),  // MIDI 1.0 in UMP format
+    Midi2ChannelVoice(Midi2ChannelVoice),
+    DataMessage(DataMessage),
+    FlexData(FlexDataMessage),
+}
+
+/// MIDI 2.0 channel voice message (high-resolution).
+pub enum Midi2ChannelVoice {
+    NoteOff {
+        group: u8,
+        channel: u8,
+        note: u8,
+        attribute: u16,
+        velocity: u16,  // 16-bit resolution
+    },
+    NoteOn {
+        group: u8,
+        channel: u8,
+        note: u8,
+        attribute: u16,
+        velocity: u16,  // 16-bit resolution
+    },
+    PolyphonicKeyPressure {
+        group: u8,
+        channel: u8,
+        note: u8,
+        pressure: u32,  // 32-bit resolution
+    },
+    ControlChange {
+        group: u8,
+        channel: u8,
+        index: u8,
+        value: u32,  // 32-bit resolution
+    },
+    ProgramChange {
+        group: u8,
+        channel: u8,
+        option_flags: u8,
+        program: u8,
+        bank_valid: bool,
+        bank_msb: u8,
+        bank_lsb: u8,
+    },
+    ChannelPressure {
+        group: u8,
+        channel: u8,
+        pressure: u32,  // 32-bit resolution
+    },
+    PitchBend {
+        group: u8,
+        channel: u8,
+        value: u32,  // 32-bit resolution
+    },
+    PerNoteRcc {
+        group: u8,
+        channel: u8,
+        note: u8,
+        index: u8,
+        value: u32,
+    },
+    PerNoteAcc {
+        group: u8,
+        channel: u8,
+        note: u8,
+        index: u8,
+        value: u32,
+    },
+    Rpn {
+        group: u8,
+        channel: u8,
+        bank: u16,
+        index: u16,
+        value: u32,
+    },
+    Nrpn {
+        group: u8,
+        channel: u8,
+        bank: u16,
+        index: u16,
+        value: u32,
+    },
+    RelativeRpn {
+        group: u8,
+        channel: u8,
+        bank: u16,
+        index: u16,
+        value: u32,
+    },
+    RelativeNrpn {
+        group: u8,
+        channel: u8,
+        bank: u16,
+        index: u16,
+        value: u32,
+    },
+    PerNoteManagement {
+        group: u8,
+        channel: u8,
+        note: u8,
+        option_flags: u8,
+    },
+}
+
+/// MIDI device enumeration and I/O.
+pub struct MidiDevice {
+    /// Device identifier.
+    pub id: DeviceId,
+    /// Device name.
+    pub name: String,
+    /// Input ports.
+    pub inputs: Vec<MidiPort>,
+    /// Output ports.
+    pub outputs: Vec<MidiPort>,
+}
+
+/// MIDI port (input or output).
+pub struct MidiPort {
+    /// Port identifier.
+    pub id: PortId,
+    /// Port name.
+    pub name: String,
+    /// Whether this is an input or output port.
+    pub direction: PortDirection,
+}
+
+/// Enumerates available MIDI devices.
+pub fn enumerate_devices() -> Result<Vec<MidiDevice>, ControlError>;
+
+/// Opens a MIDI input port for reading.
+pub fn open_input(port: &MidiPort) -> Result<MidiInput, ControlError>;
+
+/// Opens a MIDI output port for writing.
+pub fn open_output(port: &MidiPort) -> Result<MidiOutput, ControlError>;
+
+/// MIDI input stream.
+pub struct MidiInput {
+    /// Port.
+    port: MidiPort,
+    /// Message receiver.
+    receiver: Receiver<MidiMessage>,
+}
+
+impl MidiInput {
+    /// Receives the next MIDI message (blocking).
+    pub fn recv(&mut self) -> Result<MidiMessage, ControlError>;
+
+    /// Receives the next MIDI message (non-blocking).
+    pub fn try_recv(&mut self) -> Result<Option<MidiMessage>, ControlError>;
+}
+
+/// MIDI output stream.
+pub struct MidiOutput {
+    /// Port.
+    port: MidiPort,
+}
+
+impl MidiOutput {
+    /// Sends a MIDI 1.0 message.
+    pub fn send_midi1(&mut self, message: &Midi1Message) -> Result<(), ControlError>;
+
+    /// Sends a MIDI 2.0 UMP packet.
+    pub fn send_ump(&mut self, ump: &Ump) -> Result<(), ControlError>;
+}
+
+4.3. DMX Implementation (tpt-av-control-dmx)
+
+/// A DMX512 universe (512 channels).
+pub struct DmxUniverse {
+    /// Universe number.
+    pub universe: u16,
+    /// Channel values (0-255).
+    pub channels: [u8; 512],
+}
+
+impl DmxUniverse {
+    /// Creates a new DMX universe.
+    pub fn new(universe: u16) -> Self;
+
+    /// Sets a channel value.
+    pub fn set_channel(&mut self, channel: u16, value: u8);
+
+    /// Gets a channel value.
+    pub fn get_channel(&self, channel: u16) -> u8;
+}
+
+/// Art-Net protocol implementation.
+pub struct ArtNet {
+    /// UDP socket.
+    socket: UdpSocket,
+    /// Universes.
+    universes: HashMap<u16, DmxUniverse>,
+}
+
+impl ArtNet {
+    /// Creates a new Art-Net server.
+    pub fn new(port: u16) -> Result<Self, ControlError>;
+
+    /// Sends a DMX universe via Art-Net.
+    pub fn send_universe(&mut self, universe: &DmxUniverse) -> Result<(), ControlError>;
+
+    /// Receives DMX universes (blocking).
+    pub fn recv_universe(&mut self) -> Result<DmxUniverse, ControlError>;
+}
+
+/// sACN (E1.31) protocol implementation.
+pub struct Sacn {
+    /// UDP socket.
+    socket: UdpSocket,
+    /// Universes.
+    universes: HashMap<u16, DmxUniverse>,
+}
+
+impl Sacn {
+    /// Creates a new sACN server.
+    pub fn new(port: u16) -> Result<Self, ControlError>;
+
+    /// Sends a DMX universe via sACN.
+    pub fn send_universe(&mut self, universe: &DmxUniverse) -> Result<(), ControlError>;
+
+    /// Receives DMX universes (blocking).
+    pub fn recv_universe(&mut self) -> Result<DmxUniverse, ControlError>;
+}
+
+4.4. Control Surface Integration (tpt-av-control-surface)
+/// A hardware control surface.
+pub trait ControlSurface: Send {
+    /// Returns the surface name.
+    fn name(&self) -> &str;
+
+    /// Initializes the surface.
+    fn init(&mut self) -> Result<(), ControlError>;
+
+    /// Reads the next control event.
+    fn read_event(&mut self) -> Result<Option<ControlEvent>, ControlError>;
+
+    /// Sends feedback to the surface (LEDs, displays).
+    fn send_feedback(&mut self, feedback: &Feedback) -> Result<(), ControlError>;
+}
+
+/// A control event from a surface.
+pub enum ControlEvent {
+    /// Fader/knob movement.
+    FaderMove { channel: u8, value: f32 },
+    /// Button press.
+    ButtonPress { button: u8 },
+    /// Button release.
+    ButtonRelease { button: u8 },
+    /// Encoder rotation.
+    EncoderRotate { encoder: u8, delta: i8 },
+    /// Touch strip movement.
+    TouchStrip { strip: u8, value: f32 },
+}
+
+/// Feedback to send to a control surface.
+pub enum Feedback {
+    /// Set LED state.
+    Led { led: u8, on: bool },
+    /// Set LED color (RGB).
+    LedColor { led: u8, r: u8, g: u8, b: u8 },
+    /// Set display text.
+    DisplayText { display: u8, text: String },
+    /// Set fader position.
+    FaderPosition { channel: u8, value: f32 },
+}
+
+/// Generic MIDI control surface.
+pub struct GenericMidiSurface {
+    /// MIDI input.
+    input: MidiInput,
+    /// MIDI output.
+    output: MidiOutput,
+    /// Mapping configuration.
+    mapping: SurfaceMapping,
+}
+
+impl ControlSurface for GenericMidiSurface {
+    fn name(&self) -> &str {
+        "Generic MIDI Controller"
+    }
+
+    fn init(&mut self) -> Result<(), ControlError> {
+        // Initialize MIDI I/O
+        todo!()
+    }
+
+    fn read_event(&mut self) -> Result<Option<ControlEvent>, ControlError> {
+        // Read MIDI message and convert to control event
+        todo!()
+    }
+
+    fn send_feedback(&mut self, feedback: &Feedback) -> Result<(), ControlError> {
+        // Convert feedback to MIDI message and send
+        todo!()
+    }
+}
+
+/// Mapping configuration for a control surface.
+pub struct SurfaceMapping {
+    /// Fader mappings (MIDI CC → parameter).
+    pub faders: Vec<FaderMapping>,
+    /// Button mappings (MIDI note → action).
+    pub buttons: Vec<ButtonMapping>,
+    /// Encoder mappings (MIDI CC → parameter).
+    pub encoders: Vec<EncoderMapping>,
+}
+
+/// Fader mapping.
+pub struct FaderMapping {
+    /// MIDI CC number.
+    pub cc: u8,
+    /// Parameter path (e.g., "track.1.volume").
+    pub parameter: String,
+    /// Value range (min, max).
+    pub range: (f32, f32),
+}
+
+5. Real-Time Safety Architecture
+5.1. Protocol Processing (Real-Time Safe)
+All protocol parsing and message handling is allocation-free and lock-free:
+
+/// Parses an OSC message from raw bytes (real-time safe).
+pub fn parse_osc_message(data: &[u8]) -> Result<OscMessage, ControlError> {
+    // Zero allocation parsing
+    // Returns borrowed data where possible
+    todo!()
+}
+
+/// Parses a MIDI 1.0 message from raw bytes (real-time safe).
+pub fn parse_midi1(data: &[u8]) -> Result<Midi1Message, ControlError> {
+    // Zero allocation parsing
+    todo!()
+}
+
+5.2. Network I/O (Async, Not Real-Time)
+Network protocols (OSC, Art-Net, sACN) use async I/O and are not real-time safe:
+
+/// OSC server (async, not real-time safe).
+pub async fn run_osc_server(port: u16, handler: impl FnMut(OscMessage)) -> Result<(), ControlError> {
+    // Async network I/O
+    // Messages are passed to handler for processing
+    todo!()
+}
+
+5.3. Thread Architecture
+
+Network Thread (Async, Can Allocate)
+│
+│  Receive OSC/Art-Net/sACN packets
+│  Parse messages
+│  Send to message queue
+│
+MIDI Thread (Blocking, Can Allocate)
+│
+│  Receive MIDI messages
+│  Parse messages
+│  Send to message queue
+│
+Audio/Video Thread (Real-Time Safe, Zero Allocation)
+│
+│  Read from message queue (lock-free)
+│  Process messages
+│  Apply parameter changes
+
+6. Roadmap
+Phase 1: Foundation & OSC (Current)
+tpt-av-control-utils with shared types (OscMessage, MidiMessage, ControlEvent)
+tpt-av-control-osc with OSC message parsing and serialization
+OSC server and client (UDP)
+OSC address pattern matching
+Unit tests for OSC protocol compliance
+Phase 2: MIDI 1.0
+tpt-av-control-midi with MIDI 1.0 message parsing
+MIDI device enumeration and I/O
+MIDI clock and transport
+Integration tests with real MIDI hardware
+Phase 3: MIDI 2.0 / UMP
+Universal MIDI Packet (UMP) parsing and serialization
+MIDI 2.0 channel voice messages (16-bit/32-bit resolution)
+Property exchange and capabilities negotiation
+Backward compatibility with MIDI 1.0
+Phase 4: DMX / Lighting
+tpt-av-control-dmx with DMX512 universe management
+Art-Net protocol implementation
+sACN (E1.31) protocol implementation
+Integration tests with DMX lighting hardware
+Phase 5: Control Surfaces
+tpt-av-control-surface with control surface trait
+Generic MIDI controller support
+Specific hardware integrations (Behringer X32, Stream Deck)
+LED/button feedback
+Phase 6: Advanced Features
+WebRTC data channels for networked control
+MIDI timecode (MTC) and MIDI show control (MSC)
+Advanced parameter mapping and automation
+7. Dependency & Licensing Rules
+Allowed Dependencies (Permissive Only)
+tpt-av-control-utils (internal)
+tpt-av-control-osc (internal)
+tpt-av-control-midi (internal)
+tpt-av-control-dmx (internal)
+tpt-av-control-surface (internal)
+tokio (MIT) — async runtime for network I/O
+midir (MIT) — MIDI I/O (wrapped by tpt-av-control-midi)
+serde (MIT/Apache) — serialization for configuration
+log (MIT/Apache) — logging facade
+Banned Dependencies
+rtmidi (GPL)
+portmidi (GPL)
+Any crate with GPL, LGPL, AGPL, or MPL in its dependency tree
+Enforcement
+The deny.toml file enforces this automatically:
+
+[licenses]
+unlicensed = "deny"
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+]
+deny = [
+    "GPL-2.0",
+    "GPL-3.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "AGPL-3.0",
+    "MPL-2.0",
+]
+
+[licenses]
+unlicensed = "deny"
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+]
+deny = [
+    "GPL-2.0",
+    "GPL-3.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "AGPL-3.0",
+    "MPL-2.0",
+]
+
+[workspace]
+resolver = "2"
+members = [
+    "tpt-av-control-utils",
+    "tpt-av-control-osc",
+    "tpt-av-control-midi",
+    "tpt-av-control-dmx",
+    "tpt-av-control-surface",
+    "tpt-av-control-webrtc",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/tpt-solutions/tpt-av-control"
+rust-version = "1.75"
+
+[workspace.dependencies]
+tpt-av-control-utils = { path = "tpt-av-control-utils", version = "0.1.0" }
+tpt-av-control-osc = { path = "tpt-av-control-osc", version = "0.1.0" }
+tpt-av-control-midi = { path = "tpt-av-control-midi", version = "0.1.0" }
+tpt-av-control-dmx = { path = "tpt-av-control-dmx", version = "0.1.0" }
+tpt-av-control-surface = { path = "tpt-av-control-surface", version = "0.1.0" }
+tokio = { version = "1.37", features = ["full"] }
+midir = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+
+9. Contributing & License
+This project is released under the MIT License.
+By contributing to tpt-av-control, you agree that:
+Your code will be licensed under the same pure MIT terms.
+You will not introduce any dependency that is GPL, LGPL, AGPL, or MPL licensed.
+All protocol implementations must be validated against official protocol specifications.
+All real-time code must be allocation-free and lock-free.
+This ensures tpt-av-control remains free, open, and unencumbered by copyleft restrictions for all future studio control software development.
+
+
+---
+
+### Your Next Steps
+
+1. **Create the repo:** `github.com/tpt-solutions/tpt-av-control`
+2. **Initialize the workspace** with the `Cargo.toml` above
+3. **Start with `tpt-av-control-utils`** — define `OscMessage`, `MidiMessage`, `ControlEvent`, and error types
+4. **Build `tpt-av-control-osc`** — implement OSC message parsing, serialization, and UDP server/client
+5. **Write conformance tests** against the OSC specification
+6. **Move to MIDI 1.0** — implement message parsing and device I/O
+
+This completes the 6 core repositories of the TPT AV Stack:
+1. ✅ `tpt-kinetix` (video codecs, containers)
+2. ✅ `tpt-cadence` (audio codecs)
+3. ✅ `tpt-audio` (audio processing + I/O)
+4. ✅ `tpt-visual` (video processing)
+5. ✅ `tpt-voice` (speech & AI)
+6. ✅ `tpt-av-control` (studio protocols)
+
+The remaining 4 repos (`tpt-av-asset`, `tpt-av-ui`, `tpt-av-sync`, `tpt-av-test`) are future additions that build on top of this core.
+
+
