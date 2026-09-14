@@ -1,0 +1,17 @@
+[package]
+name = "tpt-av-control-midi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "MIDI 1.0 and MIDI 2.0 (UMP) implementation for the TPT AV control suite"
+
+[dependencies]
+tpt-av-control-utils = { workspace = true }
+log = { workspace = true }
+midir = { workspace = true }
+
+[dev-dependencies]
+serde_json = "1.0"

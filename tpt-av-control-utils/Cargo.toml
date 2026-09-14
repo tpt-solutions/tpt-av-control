@@ -1,0 +1,17 @@
+[package]
+name = "tpt-av-control-utils"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Shared types, errors, timing, and parameter mapping for the TPT AV control suite"
+
+[dependencies]
+log = { workspace = true }
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]

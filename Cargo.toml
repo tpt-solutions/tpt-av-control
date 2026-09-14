@@ -1,0 +1,34 @@
+[workspace]
+resolver = "2"
+members = [
+    "tpt-av-control-utils",
+    "tpt-av-control-osc",
+    "tpt-av-control-midi",
+    "tpt-av-control-dmx",
+    "tpt-av-control-surface",
+    "tpt-av-control-webrtc",
+    "examples",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/tpt-solutions/tpt-av-control"
+rust-version = "1.75"
+authors = ["TPT Solutions"]
+
+[workspace.dependencies]
+tpt-av-control-utils = { path = "tpt-av-control-utils", version = "0.1.0" }
+tpt-av-control-osc = { path = "tpt-av-control-osc", version = "0.1.0" }
+tpt-av-control-midi = { path = "tpt-av-control-midi", version = "0.1.0" }
+tpt-av-control-dmx = { path = "tpt-av-control-dmx", version = "0.1.0" }
+tpt-av-control-surface = { path = "tpt-av-control-surface", version = "0.1.0" }
+tokio = { version = "1.37", features = ["full"] }
+midir = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,17 @@
+[package]
+name = "tpt-av-control-osc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Open Sound Control (OSC 1.0/1.1) implementation for the TPT AV control suite"
+
+[dependencies]
+tpt-av-control-utils = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true, features = ["net"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }

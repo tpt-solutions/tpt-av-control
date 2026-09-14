@@ -1,0 +1,19 @@
+[package]
+name = "tpt-av-control-webrtc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WebRTC data channel transport for networked AV control"
+
+[dependencies]
+tpt-av-control-utils = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_json = { version = "1.0", optional = true }
+
+[features]
+default = []
+json = ["dep:serde", "dep:serde_json"]

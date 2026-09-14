@@ -1,0 +1,13 @@
+[package]
+name = "tpt-av-control-dmx"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "DMX512, Art-Net, and sACN (E1.31) for the TPT AV control suite"
+
+[dependencies]
+tpt-av-control-utils = { workspace = true }
+log = { workspace = true }

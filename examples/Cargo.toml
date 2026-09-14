@@ -1,0 +1,19 @@
+[package]
+name = "tpt-av-control-examples"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish = false
+description = "Runnable demos for the TPT AV control suite"
+
+[dependencies]
+tpt-av-control-utils = { workspace = true }
+tpt-av-control-osc = { workspace = true }
+tpt-av-control-midi = { workspace = true }
+tpt-av-control-dmx = { workspace = true }
+tpt-av-control-surface = { workspace = true }
+log = { workspace = true }
+env_logger = "0.11"
