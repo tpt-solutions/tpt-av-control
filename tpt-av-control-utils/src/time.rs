@@ -69,7 +69,13 @@ impl Timecode {
         if hours > 23 || minutes > 59 || seconds > 59 || frames >= rate.fps() {
             return None;
         }
-        Some(Self { hours, minutes, seconds, frames, rate })
+        Some(Self {
+            hours,
+            minutes,
+            seconds,
+            frames,
+            rate,
+        })
     }
 
     /// Splits a nominal-frame count into components at the given integer fps.
@@ -118,11 +124,10 @@ impl Timecode {
     /// real frame (`;02` of the same minute).
     pub fn to_frames(&self) -> u64 {
         let fps = u64::from(self.rate.fps());
-        let nominal = (u64::from(self.hours) * 3600
-            + u64::from(self.minutes) * 60
-            + u64::from(self.seconds))
-            * fps
-            + u64::from(self.frames);
+        let nominal =
+            (u64::from(self.hours) * 3600 + u64::from(self.minutes) * 60 + u64::from(self.seconds))
+                * fps
+                + u64::from(self.frames);
         if self.rate.is_drop_frame() {
             if self.is_virtual_label() {
                 // Normalize to the count of the next real frame, ;02.
@@ -141,7 +146,7 @@ impl Timecode {
     /// For drop-frame rates the result is always a *real* (existing) frame
     /// label; dropped labels are never produced.
     pub fn from_frames(frames: u64, rate: FrameRate) -> Self {
-        let fps = u64::from(rate.fps()) as u64;
+        let fps = u64::from(rate.fps());
         if !rate.is_drop_frame() {
             let (h, m, s, f) = Self::split_nominal(frames, fps);
             return Self {
@@ -277,23 +282,11 @@ mod tests {
         let rate = FrameRate::Fps2997Df;
         // First minute holds 1798 real frames: 00:00:59;29 is count 1799,
         // and 00:01:00;02 (the first real frame of minute 1) is 1800.
-        assert_eq!(
-            Timecode::new(0, 0, 59, 29, rate).unwrap().to_frames(),
-            1799
-        );
-        assert_eq!(
-            Timecode::new(0, 1, 0, 2, rate).unwrap().to_frames(),
-            1800
-        );
+        assert_eq!(Timecode::new(0, 0, 59, 29, rate).unwrap().to_frames(), 1799);
+        assert_eq!(Timecode::new(0, 1, 0, 2, rate).unwrap().to_frames(), 1800);
         // Virtual labels normalize to the next real frame.
-        assert_eq!(
-            Timecode::new(0, 1, 0, 0, rate).unwrap().to_frames(),
-            1800
-        );
-        assert_eq!(
-            Timecode::new(0, 1, 0, 1, rate).unwrap().to_frames(),
-            1800
-        );
+        assert_eq!(Timecode::new(0, 1, 0, 0, rate).unwrap().to_frames(), 1800);
+        assert_eq!(Timecode::new(0, 1, 0, 1, rate).unwrap().to_frames(), 1800);
         // Minute ten keeps its frames: 00:10:00;00 = 17,982.
         assert_eq!(
             Timecode::new(0, 10, 0, 0, rate).unwrap().to_frames(),
@@ -315,16 +308,18 @@ mod tests {
             assert_eq!(tc.to_frames(), frames, "inverse failed at {frames}");
         }
         // Checkpoints.
-        for frames in [0u64, 1797, 1798, 1799, 1800, 3597, 3598, 17_981, 17_982, 107_891] {
+        for frames in [
+            0u64, 1797, 1798, 1799, 1800, 3597, 3598, 17_981, 17_982, 107_891,
+        ] {
             let tc = Timecode::from_frames(frames, rate);
             assert_eq!(tc.to_frames(), frames, "inverse failed at {frames}");
         }
         // Dropped labels are never produced.
-        assert!(
-            Timecode::from_frames(1800, rate)
-                != Timecode::new(0, 1, 0, 0, rate).unwrap()
+        assert!(Timecode::from_frames(1800, rate) != Timecode::new(0, 1, 0, 0, rate).unwrap());
+        assert_eq!(
+            Timecode::from_frames(1800, rate),
+            Timecode::new(0, 1, 0, 2, rate).unwrap()
         );
-        assert_eq!(Timecode::from_frames(1800, rate), Timecode::new(0, 1, 0, 2, rate).unwrap());
     }
 
     #[test]

@@ -97,7 +97,12 @@ pub struct Message {
 impl Message {
     /// Creates a message stamped with the current time.
     pub fn now(id: u64, source: MessageSource, body: MessageBody) -> Self {
-        Self { id, timestamp: Timestamp::now(), source, body }
+        Self {
+            id,
+            timestamp: Timestamp::now(),
+            source,
+            body,
+        }
     }
 }
 
@@ -125,7 +130,10 @@ mod tests {
     #[test]
     fn body_variants_construct() {
         let bodies = [
-            MessageBody::Raw { protocol: Protocol::Midi1, data: vec![0x90, 60, 100] },
+            MessageBody::Raw {
+                protocol: Protocol::Midi1,
+                data: vec![0x90, 60, 100],
+            },
             MessageBody::Transport(TransportCommand::Play),
             MessageBody::Locate(Timecode::new(0, 1, 0, 0, crate::time::FrameRate::Fps25).unwrap()),
             MessageBody::Text("hello".into()),

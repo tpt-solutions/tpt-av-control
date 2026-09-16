@@ -90,14 +90,18 @@ mod tests {
 
     #[test]
     fn display_is_informative() {
-        let e = ControlError::OutOfRange { value: 600, min: 0, max: 511 };
+        let e = ControlError::OutOfRange {
+            value: 600,
+            min: 0,
+            max: 511,
+        };
         assert!(e.to_string().contains("600"));
         assert!(e.to_string().contains("511"));
     }
 
     #[test]
     fn io_error_converts() {
-        let e: ControlError = std::io::Error::new(std::io::ErrorKind::Other, "boom").into();
+        let e: ControlError = std::io::Error::other("boom").into();
         assert!(matches!(e, ControlError::Io(_)));
         assert!(std::error::Error::source(&e).is_some());
     }

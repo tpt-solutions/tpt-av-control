@@ -35,7 +35,10 @@ pub struct OscBundle {
 impl OscBundle {
     /// Creates a bundle with the given NTP timestamp (`None` = immediate).
     pub fn new(timestamp: Option<u64>, elements: Vec<OscPacket>) -> Self {
-        Self { timestamp, elements }
+        Self {
+            timestamp,
+            elements,
+        }
     }
 
     /// Encodes the bundle into a new byte buffer.
@@ -76,11 +79,15 @@ pub fn parse_bundle(data: &[u8]) -> Result<OscBundle, ControlError> {
 
 fn parse_bundle_at(data: &[u8], depth: u8) -> Result<OscBundle, ControlError> {
     if depth >= MAX_BUNDLE_DEPTH {
-        return Err(ControlError::InvalidData("bundle nesting too deep".to_string()));
+        return Err(ControlError::InvalidData(
+            "bundle nesting too deep".to_string(),
+        ));
     }
     let (marker, mut offset) = types::read_null_terminated(data, 0)?;
     if marker != BUNDLE_MARKER {
-        return Err(ControlError::InvalidData("bundle must begin with '#bundle'".to_string()));
+        return Err(ControlError::InvalidData(
+            "bundle must begin with '#bundle'".to_string(),
+        ));
     }
     let timetag = types::read_u64(data, offset)?;
     offset += 8;
@@ -98,7 +105,10 @@ fn parse_bundle_at(data: &[u8], depth: u8) -> Result<OscBundle, ControlError> {
         elements.push(parse_packet_at(element, depth + 1)?);
         offset = end;
     }
-    Ok(OscBundle { timestamp, elements })
+    Ok(OscBundle {
+        timestamp,
+        elements,
+    })
 }
 
 /// Parses a bundle element (message or nested bundle).
@@ -110,7 +120,9 @@ fn parse_packet_at(data: &[u8], depth: u8) -> Result<OscPacket, ControlError> {
     if data.first() == Some(&b'#') {
         Ok(OscPacket::Bundle(parse_bundle_at(data, depth)?))
     } else {
-        Ok(OscPacket::Message(crate::message::parse_osc_message(data)?.to_owned()))
+        Ok(OscPacket::Message(
+            crate::message::parse_osc_message(data)?.to_owned(),
+        ))
     }
 }
 
@@ -121,9 +133,7 @@ mod tests {
 
     #[test]
     fn roundtrips_nested_bundles() {
-        let leaf = OscPacket::Message(
-            OscMessage::new("/leaf", &[OscArg::Float(1.0)]).unwrap(),
-        );
+        let leaf = OscPacket::Message(OscMessage::new("/leaf", &[OscArg::Float(1.0)]).unwrap());
         let inner = OscPacket::Bundle(OscBundle::new(Some(42), vec![leaf]));
         let outer = OscBundle::new(
             Some(0x0000_0001_0000_0000),
@@ -165,7 +175,9 @@ mod tests {
     fn rejects_truncated_elements() {
         let b = OscBundle::new(
             None,
-            vec![OscPacket::Message(OscMessage::new("/m", &[OscArg::Int(1)]).unwrap())],
+            vec![OscPacket::Message(
+                OscMessage::new("/m", &[OscArg::Int(1)]).unwrap(),
+            )],
         );
         let good = b.encode();
         // Prefixes shorter than marker+timetag (16 bytes) must fail; an

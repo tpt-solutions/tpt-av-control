@@ -2,8 +2,6 @@
 
 /// Identifies a MIDI port within one enumeration.
 ///
-/// The index is an enumeration-order handle; re-enumerate before reusing
-/// stale ids (devices may come and go).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PortId {
     /// Enumeration-order index.
@@ -17,8 +15,8 @@ impl PortId {
     }
 }
 
-/// Whether a port carries MIDI into or out of the host.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Whether a port carries MIDI into or out of the host.
 pub enum PortDirection {
     /// Receives MIDI from the device.
     Input,
@@ -26,8 +24,8 @@ pub enum PortDirection {
     Output,
 }
 
-/// A single MIDI input or output port on a device.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// A single MIDI input or output port on a device.
 pub struct MidiPort {
     /// Port identifier.
     pub id: PortId,
@@ -40,6 +38,10 @@ pub struct MidiPort {
 impl MidiPort {
     /// Creates a port description.
     pub fn new(id: PortId, name: impl Into<String>, direction: PortDirection) -> Self {
-        Self { id, name: name.into(), direction }
+        Self {
+            id,
+            name: name.into(),
+            direction,
+        }
     }
 }

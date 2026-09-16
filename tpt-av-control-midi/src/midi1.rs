@@ -7,31 +7,99 @@
 
 use tpt_av_control_utils::ControlError;
 
-/// A MIDI 1.0 message.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// A MIDI 1.0 message.
 pub enum Midi1Message {
     /// `8n` — note off.
-    NoteOff { channel: u8, note: u8, velocity: u8 },
+    /// Channel (0-15).
+    /// Note number (0-127).
+    /// Velocity (0-127).
+    /// `8n` — note off.
+    NoteOff {
+        /// Channel (0-15).
+        channel: u8,
+        /// Note number (0-127).
+        note: u8,
+        /// Velocity (0-127 for MIDI 1.0; 16-bit for MIDI 2.0).
+        velocity: u8,
+    },
     /// `9n` — note on (velocity 0 is conventionally a note off).
-    NoteOn { channel: u8, note: u8, velocity: u8 },
+    /// Channel (0-15).
+    /// Note number (0-127).
+    /// Velocity (0-127).
+    /// `9n` — note on (velocity 0 is conventionally a note off).
+    NoteOn {
+        /// Channel (0-15).
+        channel: u8,
+        /// Note number (0-127).
+        note: u8,
+        /// Velocity (0-127 for MIDI 1.0; 16-bit for MIDI 2.0).
+        velocity: u8,
+    },
     /// `An` — polyphonic key pressure.
-    PolyphonicKeyPressure { channel: u8, note: u8, pressure: u8 },
+    /// Channel (0-15).
+    /// Note number (0-127).
+    /// Pressure (0-127).
+    /// `An` — polyphonic key pressure.
+    PolyphonicKeyPressure {
+        /// Channel (0-15).
+        channel: u8,
+        /// Note number (0-127).
+        note: u8,
+        /// Pressure (7-bit for MIDI 1.0; 32-bit for MIDI 2.0).
+        pressure: u8,
+    },
     /// `Bn` — control change.
-    ControlChange { channel: u8, controller: u8, value: u8 },
+    /// Channel (0-15).
+    /// Controller number (0-127).
+    /// Value (0-127).
+    /// `Bn` — control change.
+    ControlChange {
+        /// Channel (0-15).
+        channel: u8,
+        /// Controller number (0-127).
+        controller: u8,
+        /// Value (7-bit for MIDI 1.0; 32-bit for MIDI 2.0).
+        value: u8,
+    },
     /// `Cn` — program change.
-    ProgramChange { channel: u8, program: u8 },
+    /// Channel (0-15).
+    /// Program (patch) number.
+    /// `Cn` — program change.
+    ProgramChange {
+        /// Channel (0-15).
+        channel: u8,
+        /// Program (patch) number.
+        program: u8,
+    },
     /// `Dn` — channel pressure.
-    ChannelPressure { channel: u8, pressure: u8 },
+    /// Channel (0-15).
+    /// Pressure (0-127).
+    /// `Dn` — channel pressure.
+    ChannelPressure {
+        /// Channel (0-15).
+        channel: u8,
+        /// Pressure (7-bit for MIDI 1.0; 32-bit for MIDI 2.0).
+        pressure: u8,
+    },
     /// `En` — pitch bend; `value` is the 14-bit centered value (0..16384,
     /// center 8192).
-    PitchBendChange { channel: u8, value: u16 },
-    /// `F0 .. F7` — system exclusive (bytes include F0 and F7).
-    SystemExclusive(Vec<u8>),
+    /// Channel (0-15).
+    /// 14-bit value, center 8192.
+    /// `En` — pitch bend; `value` is 14-bit centered (center 8192).
+    PitchBendChange {
+        /// Channel (0-15).
+        channel: u8,
+        /// Value (7-bit for MIDI 1.0; 32-bit for MIDI 2.0).
+        value: u16,
+    },
     /// `F1` — MIDI time code quarter frame.
-    TimeCodeQuarterFrame(u8),
+    SystemExclusive(Vec<u8>),
     /// `F2` — song position pointer (14-bit).
-    SongPositionPointer(u16),
+    TimeCodeQuarterFrame(u8),
     /// `F3` — song select.
+    SongPositionPointer(u16),
+    /// `F6` — tune request.
     SongSelect(u8),
     /// `F6` — tune request.
     TuneRequest,
@@ -51,7 +119,6 @@ pub enum Midi1Message {
 
 impl Midi1Message {
     /// The status byte for this message, or `None` for SysEx (whose
-    /// status is part of the payload).
     pub fn status(&self) -> Option<u8> {
         Some(match self {
             Midi1Message::NoteOff { channel, .. } => 0x80 | channel,
@@ -90,11 +157,13 @@ impl Midi1Message {
     }
 
     /// Encodes into `buf`, returning the number of bytes written. Does not
-    /// allocate — safe for real-time threads.
     pub fn write_bytes(&self, buf: &mut [u8]) -> Result<usize, ControlError> {
         let needed = self.encoded_len();
         if buf.len() < needed {
-            return Err(ControlError::BufferTooSmall { needed, available: buf.len() });
+            return Err(ControlError::BufferTooSmall {
+                needed,
+                available: buf.len(),
+            });
         }
         macro_rules! three {
             ($status:expr, $d1:expr, $d2:expr) => {{
@@ -105,16 +174,32 @@ impl Midi1Message {
             }};
         }
         Ok(match self {
-            Midi1Message::NoteOff { channel, note, velocity } => {
+            Midi1Message::NoteOff {
+                channel,
+                note,
+                velocity,
+            } => {
                 three!(0x80 | channel, *note, *velocity)
             }
-            Midi1Message::NoteOn { channel, note, velocity } => {
+            Midi1Message::NoteOn {
+                channel,
+                note,
+                velocity,
+            } => {
                 three!(0x90 | channel, *note, *velocity)
             }
-            Midi1Message::PolyphonicKeyPressure { channel, note, pressure } => {
+            Midi1Message::PolyphonicKeyPressure {
+                channel,
+                note,
+                pressure,
+            } => {
                 three!(0xA0 | channel, *note, *pressure)
             }
-            Midi1Message::ControlChange { channel, controller, value } => {
+            Midi1Message::ControlChange {
+                channel,
+                controller,
+                value,
+            } => {
                 three!(0xB0 | channel, *controller, *value)
             }
             Midi1Message::ProgramChange { channel, program } => {
@@ -195,7 +280,6 @@ impl Midi1Message {
 /// Parses one MIDI 1.0 message from the front of `data`.
 ///
 /// Real-time safe except for [`Midi1Message::SystemExclusive`], which
-/// allocates its payload. Extra trailing bytes are ignored.
 pub fn parse_midi1(data: &[u8]) -> Result<Midi1Message, ControlError> {
     if data.is_empty() {
         return Err(ControlError::InvalidData("empty MIDI data".into()));
@@ -232,31 +316,36 @@ pub fn parse_midi1(data: &[u8]) -> Result<Midi1Message, ControlError> {
             let note = d7(0)?;
             let velocity = d7(1)?;
             if status < 0x90 {
-                Ok(Midi1Message::NoteOff { channel, note, velocity })
+                Ok(Midi1Message::NoteOff {
+                    channel,
+                    note,
+                    velocity,
+                })
             } else {
-                Ok(Midi1Message::NoteOn { channel, note, velocity })
+                Ok(Midi1Message::NoteOn {
+                    channel,
+                    note,
+                    velocity,
+                })
             }
         }
-        0xA0..=0xEF => {
+        0xA0..=0xBF => {
             need(2)?;
             let channel = status & 0x0F;
             let d1 = d7(0)?;
             let d2 = d7(1)?;
-            match status & 0xF0 {
-                0xA0 => Ok(Midi1Message::PolyphonicKeyPressure {
+            if status < 0xB0 {
+                Ok(Midi1Message::PolyphonicKeyPressure {
                     channel,
                     note: d1,
                     pressure: d2,
-                }),
-                0xB0 => Ok(Midi1Message::ControlChange {
+                })
+            } else {
+                Ok(Midi1Message::ControlChange {
                     channel,
                     controller: d1,
                     value: d2,
-                }),
-                _ => Ok(Midi1Message::PitchBendChange {
-                    channel,
-                    value: u16::from(d2) << 7 | u16::from(d1),
-                }),
+                })
             }
         }
         0xC0..=0xDF => {
@@ -264,10 +353,26 @@ pub fn parse_midi1(data: &[u8]) -> Result<Midi1Message, ControlError> {
             let channel = status & 0x0F;
             let d1 = d7(0)?;
             if status < 0xD0 {
-                Ok(Midi1Message::ProgramChange { channel, program: d1 })
+                Ok(Midi1Message::ProgramChange {
+                    channel,
+                    program: d1,
+                })
             } else {
-                Ok(Midi1Message::ChannelPressure { channel, pressure: d1 })
+                Ok(Midi1Message::ChannelPressure {
+                    channel,
+                    pressure: d1,
+                })
             }
+        }
+        0xE0..=0xEF => {
+            need(2)?;
+            let channel = status & 0x0F;
+            let lsb = d7(0)?;
+            let msb = d7(1)?;
+            Ok(Midi1Message::PitchBendChange {
+                channel,
+                value: u16::from(msb) << 7 | u16::from(lsb),
+            })
         }
         0xF0 => {
             // SysEx: scan to EOX; require it to be present.
@@ -275,9 +380,7 @@ pub fn parse_midi1(data: &[u8]) -> Result<Midi1Message, ControlError> {
                 .iter()
                 .position(|&b| b == 0xF7)
                 .map(|p| p + 1)
-                .ok_or_else(|| {
-                    ControlError::InvalidData("SysEx missing F7 terminator".into())
-                })?;
+                .ok_or_else(|| ControlError::InvalidData("SysEx missing F7 terminator".into()))?;
             // Validate all payload bytes are 7-bit (except F0 and F7).
             for &b in &data[1..end] {
                 if b >= 0x80 {
@@ -319,14 +422,14 @@ pub fn parse_midi1(data: &[u8]) -> Result<Midi1Message, ControlError> {
 }
 
 /// Parses one MIDI 1.0 message and returns it with the number of bytes
-/// consumed, suitable for walking a byte stream.
 pub fn parse_midi1_prefix(data: &[u8]) -> Result<(Midi1Message, usize), ControlError> {
     let message = parse_midi1(data)?;
     let len = message.encoded_len();
     Ok((message, len))
 }
 
-/// Encodes a message into a fresh buffer (allocates).
+/// Parses one MIDI 1.0 message and returns it with the number of bytes
+/// consumed, suitable for walking a byte stream.
 pub fn encode_midi1(message: &Midi1Message) -> Vec<u8> {
     message.to_bytes()
 }
@@ -354,12 +457,24 @@ pub const fn scale_32_to_7(v: u32) -> u8 {
 
 /// Scales a 16-bit value to 32 bits (full scale).
 pub const fn scale_16_to_32(v: u16) -> u32 {
-    (((v as u64) * 0xFFFF_FFFF + 0x7FFF) / 0xFFFF) as u32
+    // 0xFFFF_FFFF == 0xFFFF * 0x10001, so this mapping is exact.
+    ((v as u32) << 16) | (v as u32)
 }
 
 /// Scales a 32-bit value to 16 bits (rounded).
 pub const fn scale_32_to_16(v: u32) -> u16 {
     (((v as u64) * 0xFFFF + 0x7FFF_FFFF) / 0xFFFF_FFFF) as u16
+}
+
+/// Scales a 32-bit value to 14 bits (rounded) — used for MIDI 1.0 pitch
+/// bends, whose range is 14-bit centered.
+pub const fn scale_32_to_14(v: u32) -> u16 {
+    (((v as u64) * 0x3FFF + 0x8000_0000) / 0xFFFF_FFFF) as u16
+}
+
+/// Scales a 14-bit value to 32 bits — the inverse of [`scale_32_to_14`].
+pub const fn scale_14_to_32(v: u16) -> u32 {
+    (((v as u64) * 0xFFFF_FFFF + 0x1FFF) / 0x3FFF) as u32
 }
 
 #[cfg(test)]
@@ -369,23 +484,53 @@ mod tests {
     #[test]
     fn parses_channel_messages() {
         let (m, n) = parse_midi1_prefix(&[0x90, 0x3C, 0x40]).unwrap();
-        assert_eq!(m, Midi1Message::NoteOn { channel: 0, note: 60, velocity: 64 });
+        assert_eq!(
+            m,
+            Midi1Message::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 64
+            }
+        );
         assert_eq!(n, 3);
 
         let (m, _) = parse_midi1_prefix(&[0x8F, 0x3C, 0x7F]).unwrap();
-        assert_eq!(m, Midi1Message::NoteOff { channel: 15, note: 60, velocity: 127 });
+        assert_eq!(
+            m,
+            Midi1Message::NoteOff {
+                channel: 15,
+                note: 60,
+                velocity: 127
+            }
+        );
 
         let (m, _) = parse_midi1_prefix(&[0xB2, 0x07, 0x64]).unwrap();
         assert_eq!(
             m,
-            Midi1Message::ControlChange { channel: 2, controller: 7, value: 100 }
+            Midi1Message::ControlChange {
+                channel: 2,
+                controller: 7,
+                value: 100
+            }
         );
 
         let (m, _) = parse_midi1_prefix(&[0xE0, 0x00, 0x40]).unwrap();
-        assert_eq!(m, Midi1Message::PitchBendChange { channel: 0, value: 8192 });
+        assert_eq!(
+            m,
+            Midi1Message::PitchBendChange {
+                channel: 0,
+                value: 8192
+            }
+        );
 
         let (m, _) = parse_midi1_prefix(&[0xC5, 0x10]).unwrap();
-        assert_eq!(m, Midi1Message::ProgramChange { channel: 5, program: 16 });
+        assert_eq!(
+            m,
+            Midi1Message::ProgramChange {
+                channel: 5,
+                program: 16
+            }
+        );
     }
 
     #[test]
@@ -429,13 +574,38 @@ mod tests {
     #[test]
     fn encode_roundtrips() {
         let messages = vec![
-            Midi1Message::NoteOn { channel: 3, note: 42, velocity: 100 },
-            Midi1Message::NoteOff { channel: 9, note: 42, velocity: 0 },
-            Midi1Message::ControlChange { channel: 0, controller: 74, value: 1 },
-            Midi1Message::PitchBendChange { channel: 7, value: 12345 },
-            Midi1Message::ProgramChange { channel: 15, program: 127 },
-            Midi1Message::ChannelPressure { channel: 1, pressure: 55 },
-            Midi1Message::PolyphonicKeyPressure { channel: 1, note: 9, pressure: 88 },
+            Midi1Message::NoteOn {
+                channel: 3,
+                note: 42,
+                velocity: 100,
+            },
+            Midi1Message::NoteOff {
+                channel: 9,
+                note: 42,
+                velocity: 0,
+            },
+            Midi1Message::ControlChange {
+                channel: 0,
+                controller: 74,
+                value: 1,
+            },
+            Midi1Message::PitchBendChange {
+                channel: 7,
+                value: 12345,
+            },
+            Midi1Message::ProgramChange {
+                channel: 15,
+                program: 127,
+            },
+            Midi1Message::ChannelPressure {
+                channel: 1,
+                pressure: 55,
+            },
+            Midi1Message::PolyphonicKeyPressure {
+                channel: 1,
+                note: 9,
+                pressure: 88,
+            },
             Midi1Message::SongPositionPointer(16000),
             Midi1Message::SongSelect(3),
             Midi1Message::TimeCodeQuarterFrame(0x7F),
@@ -453,11 +623,18 @@ mod tests {
 
     #[test]
     fn write_bytes_into_small_buffer() {
-        let m = Midi1Message::NoteOn { channel: 0, note: 60, velocity: 64 };
+        let m = Midi1Message::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 64,
+        };
         let mut buf = [0u8; 2];
         assert!(matches!(
             m.write_bytes(&mut buf),
-            Err(ControlError::BufferTooSmall { needed: 3, available: 2 })
+            Err(ControlError::BufferTooSmall {
+                needed: 3,
+                available: 2
+            })
         ));
         let mut buf = [0u8; 3];
         assert_eq!(m.write_bytes(&mut buf).unwrap(), 3);
@@ -471,6 +648,8 @@ mod tests {
         assert_eq!(scale_7_to_32(0x7F), 0xFFFF_FFFF);
         assert_eq!(scale_32_to_7(0xFFFF_FFFF), 0x7F);
         assert_eq!(scale_16_to_32(0xFFFF), 0xFFFF_FFFF);
+        assert_eq!(scale_16_to_32(0), 0);
+        assert_eq!(scale_32_to_16(scale_16_to_32(0x8000)), 0x8000);
         assert_eq!(scale_32_to_16(0xFFFF_FFFF), 0xFFFF);
         // Roundtrips are stable for extremes and midpoints.
         for v in [0u8, 1, 0x40, 0x7E, 0x7F] {

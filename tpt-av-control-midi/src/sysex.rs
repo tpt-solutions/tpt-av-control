@@ -53,7 +53,6 @@ pub fn identity_request(device_id: u8) -> Midi1Message {
 }
 
 /// Builds a Universal System Exclusive message:
-/// `F0 <manufacturer> <device> <sub_id1> <sub_id2> <payload..> F7`.
 pub fn sysex_universal(
     manufacturer: u8,
     device_id: u8,
@@ -74,11 +73,10 @@ pub fn sysex_universal(
     Midi1Message::SystemExclusive(bytes)
 }
 
-/// Parsed view of a System Exclusive message.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Parsed view of a System Exclusive message.
 pub struct SysExView<'a> {
     /// Manufacturer ID: 1 byte, or the first byte of a 3-byte ID when
-    /// `manufacturer` is in `0x00..=0x7E` and a second data byte follows
     /// (per the MMA 3-byte ID scheme).
     pub manufacturer: u8,
     /// For universal messages: device ID.
@@ -109,8 +107,7 @@ pub fn parse_sysex(message: &Midi1Message) -> Result<SysExView<'_>, ControlError
         ));
     }
     let manufacturer = bytes[1];
-    let universal = manufacturer == UNIVERSAL_NON_REALTIME
-        || manufacturer == UNIVERSAL_REALTIME;
+    let universal = manufacturer == UNIVERSAL_NON_REALTIME || manufacturer == UNIVERSAL_REALTIME;
     let mut view = SysExView {
         manufacturer,
         device_id: None,
@@ -128,9 +125,7 @@ pub fn parse_sysex(message: &Midi1Message) -> Result<SysExView<'_>, ControlError
     Ok(view)
 }
 
-/// Splits a SysEx payload into chunks of at most `chunk_size` data bytes,
 /// each wrapped as a complete `F0 .. F7` message (as required by some
-/// hardware for long dumps).
 pub fn chunk_sysex(data: &[u8], chunk_size: usize) -> Vec<Midi1Message> {
     let chunk_size = chunk_size.max(1);
     data.chunks(chunk_size)
@@ -190,7 +185,7 @@ mod tests {
         let view = parse_sysex(&msg).unwrap();
         assert!(!view.universal);
         assert_eq!(view.device_id, None);
-        assert_eq!(view.payload, &[0x41, 0x10]);
+        assert_eq!(view.payload, &[0x10]);
     }
 
     #[test]

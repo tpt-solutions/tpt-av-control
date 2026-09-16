@@ -15,3 +15,4 @@ midir = { workspace = true }
 
 [dev-dependencies]
 serde_json = "1.0"
+tpt-av-test-mock = { path = "../../tpt-av-test/tpt-av-test-mock" }

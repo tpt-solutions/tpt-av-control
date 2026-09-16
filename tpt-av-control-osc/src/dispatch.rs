@@ -15,14 +15,9 @@ struct Route {
 ///
 /// Routes are evaluated in registration order; a message is delivered to
 /// every matching route (OSC semantics allow multiple matches).
+#[derive(Default)]
 pub struct OscDispatcher {
     routes: Vec<Route>,
-}
-
-impl Default for OscDispatcher {
-    fn default() -> Self {
-        Self { routes: Vec::new() }
-    }
 }
 
 impl OscDispatcher {
@@ -33,11 +28,7 @@ impl OscDispatcher {
 
     /// Registers a handler for `pattern`. Replaces any existing route with
     /// the same pattern.
-    pub fn add_route(
-        &mut self,
-        pattern: &str,
-        handler: impl FnMut(OscMessage) + Send + 'static,
-    ) {
+    pub fn add_route(&mut self, pattern: &str, handler: impl FnMut(OscMessage) + Send + 'static) {
         self.remove_route(pattern);
         self.routes.push(Route {
             matcher: OscAddressMatcher::new(pattern),
@@ -48,8 +39,7 @@ impl OscDispatcher {
     /// Removes the route for `pattern`. Returns whether one existed.
     pub fn remove_route(&mut self, pattern: &str) -> bool {
         let before = self.routes.len();
-        self.routes
-            .retain(|r| r.matcher.pattern() != pattern);
+        self.routes.retain(|r| r.matcher.pattern() != pattern);
         self.routes.len() != before
     }
 
@@ -114,7 +104,10 @@ mod tests {
         d.add_route("/master/*", h_b);
         assert_eq!(d.patterns().count(), 2);
 
-        assert_eq!(d.dispatch(OscMessage::new("/track/3/volume", &[]).unwrap()), 1);
+        assert_eq!(
+            d.dispatch(OscMessage::new("/track/3/volume", &[]).unwrap()),
+            1
+        );
         assert_eq!(d.dispatch(OscMessage::new("/master/gain", &[]).unwrap()), 1);
         assert_eq!(d.dispatch(OscMessage::new("/other", &[]).unwrap()), 0);
 

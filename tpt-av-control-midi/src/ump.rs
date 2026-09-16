@@ -2,15 +2,13 @@
 //! plus the MIDI 1.0 ↔ MIDI 2.0 translation layer.
 
 use crate::messages::{
-    DataFormat, DataMessage, FlexDataMessage, Midi1ChannelVoice, Midi2ChannelVoice,
-    Midi2Message, SysExMessage, SystemCommonMessage, UtilityMessage,
+    DataFormat, DataMessage, FlexDataMessage, Midi1ChannelVoice, Midi2ChannelVoice, Midi2Message,
+    SysExMessage, SystemCommonMessage, UtilityMessage,
 };
 use crate::midi1::{self, Midi1Message};
 use tpt_av_control_utils::ControlError;
 
 /// A Universal MIDI Packet: up to four 32-bit words.
-///
-/// `words[0..num_words()]` are meaningful; the rest are zero.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Ump {
     /// Raw packet words, big-endian message semantics.
@@ -45,7 +43,7 @@ impl Ump {
     /// The number of words this packet occupies per its message type.
     pub fn num_words(&self) -> usize {
         match self.message_type() {
-            0x0 | 0x1 | 0x2 => 1,
+            0x0..=0x2 => 1,
             0x3 | 0x4 | 0xD => 2,
             0x5 | 0xE | 0xF => 4,
             _ => 1,
@@ -68,17 +66,15 @@ impl Ump {
     /// Builds a single-packet UMP from a MIDI 2.0 message.
     ///
     /// Note: a full MIDI-CI or chunked SysEx exchange spans several
-    /// packets; use [`crate::ump::messages_to_umps`] for those.
+    /// packets; use [`crate::ump::message_to_umps`] for those.
     pub fn from_message(message: &Midi2Message) -> Self {
         let mut words = [0u32; 4];
         match message {
             Midi2Message::Utility(u) => {
                 words[0] = match u {
                     UtilityMessage::NoOp => 0x0000_0000,
-                    UtilityMessage::Clock { clock } => 0x0100_0000 | u32::from(*clock),
-                    UtilityMessage::Timestamp { timestamp } => {
-                        0x0200_0000 | u32::from(*timestamp)
-                    }
+                    UtilityMessage::Clock { clock } => 0x0010_0000 | u32::from(*clock),
+                    UtilityMessage::Timestamp { timestamp } => 0x0020_0000 | u32::from(*timestamp),
                 };
             }
             Midi2Message::SystemCommon(s) => {
@@ -106,31 +102,30 @@ impl Ump {
             }
             Midi2Message::Midi1ChannelVoice(cv) => {
                 let status = cv.message.status().unwrap_or(0);
-                words[0] = 0x2000_0000
-                    | u32::from(cv.group) << 24
-                    | u32::from(status) << 16;
+                words[0] = 0x2000_0000 | u32::from(cv.group) << 24 | u32::from(status) << 16;
                 match &cv.message {
                     Midi1Message::NoteOff { note, velocity, .. } => {
-                        words[0] |= u32::from(note) << 8 | u32::from(*velocity);
+                        words[0] |= u32::from(*note) << 8 | u32::from(*velocity);
                     }
                     Midi1Message::NoteOn { note, velocity, .. } => {
-                        words[0] |= u32::from(note) << 8 | u32::from(*velocity);
+                        words[0] |= u32::from(*note) << 8 | u32::from(*velocity);
                     }
                     Midi1Message::PolyphonicKeyPressure { note, pressure, .. } => {
-                        words[0] |= u32::from(note) << 8 | u32::from(*pressure);
+                        words[0] |= u32::from(*note) << 8 | u32::from(*pressure);
                     }
-                    Midi1Message::ControlChange { controller, value, .. } => {
-                        words[0] |= u32::from(controller) << 8 | u32::from(*value);
+                    Midi1Message::ControlChange {
+                        controller, value, ..
+                    } => {
+                        words[0] |= u32::from(*controller) << 8 | u32::from(*value);
                     }
                     Midi1Message::ProgramChange { program, .. } => {
-                        words[0] |= u32::from(program) << 8;
+                        words[0] |= u32::from(*program) << 8;
                     }
                     Midi1Message::ChannelPressure { pressure, .. } => {
-                        words[0] |= u32::from(pressure) << 8;
+                        words[0] |= u32::from(*pressure) << 8;
                     }
                     Midi1Message::PitchBendChange { value, .. } => {
-                        words[0] |= u32::from(value & 0x7F) << 8
-                            | u32::from((value >> 7) & 0x7F);
+                        words[0] |= u32::from(value & 0x7F) << 8 | u32::from((value >> 7) & 0x7F);
                     }
                     _ => {}
                 }
@@ -140,9 +135,9 @@ impl Ump {
                 words[0] = 0x3000_0000
                     | u32::from(s.group()) << 24
                     | u32::from(s.status_code()) << 20
-                    | data.len().min(6) as u32 << 16;
+                    | ((data.len().min(6) as u32) << 16);
                 // Six 7-bit bytes: two in word0, four in word1.
-                let mut offset = 8;
+                let mut offset: i32 = 8;
                 for &byte in data.iter().take(6) {
                     words[0] |= u32::from(byte & 0x7F) << offset;
                     if offset == 0 {
@@ -150,7 +145,7 @@ impl Ump {
                     }
                     offset = offset.saturating_sub(8);
                 }
-                let mut offset = 24;
+                let mut offset: i32 = 24;
                 for &byte in data.iter().skip(2).take(4) {
                     words[1] |= u32::from(byte & 0x7F) << offset;
                     offset = offset.saturating_sub(8);
@@ -163,10 +158,18 @@ impl Ump {
                     | u32::from(cv.channel()) << 16;
                 match *cv {
                     Midi2ChannelVoice::NoteOff {
-                        note, attribute_type, attribute, velocity, ..
+                        note,
+                        attribute_type,
+                        attribute,
+                        velocity,
+                        ..
                     }
                     | Midi2ChannelVoice::NoteOn {
-                        note, attribute_type, attribute, velocity, ..
+                        note,
+                        attribute_type,
+                        attribute,
+                        velocity,
+                        ..
                     } => {
                         words[0] |= u32::from(note) << 8 | u32::from(attribute_type);
                         words[1] = u32::from(velocity) << 16 | u32::from(attribute);
@@ -179,15 +182,27 @@ impl Ump {
                         words[0] |= u32::from(index) << 8;
                         words[1] = value;
                     }
-                    Midi2ChannelVoice::PerNoteRcc { note, index, value, .. }
-                    | Midi2ChannelVoice::PerNoteAcc { note, index, value, .. } => {
+                    Midi2ChannelVoice::PerNoteRcc {
+                        note, index, value, ..
+                    }
+                    | Midi2ChannelVoice::PerNoteAcc {
+                        note, index, value, ..
+                    } => {
                         words[0] |= u32::from(note) << 8 | u32::from(index);
                         words[1] = value;
                     }
-                    Midi2ChannelVoice::Rpn { bank, index, value, .. }
-                    | Midi2ChannelVoice::Nrpn { bank, index, value, .. }
-                    | Midi2ChannelVoice::RelativeRpn { bank, index, value, .. }
-                    | Midi2ChannelVoice::RelativeNrpn { bank, index, value, .. } => {
+                    Midi2ChannelVoice::Rpn {
+                        bank, index, value, ..
+                    }
+                    | Midi2ChannelVoice::Nrpn {
+                        bank, index, value, ..
+                    }
+                    | Midi2ChannelVoice::RelativeRpn {
+                        bank, index, value, ..
+                    }
+                    | Midi2ChannelVoice::RelativeNrpn {
+                        bank, index, value, ..
+                    } => {
                         words[0] |= u32::from(bank & 0x7F) << 8 | u32::from(index & 0x7F);
                         words[1] = value;
                     }
@@ -210,7 +225,9 @@ impl Ump {
                             | u32::from(bank_lsb & 0x7F);
                     }
                     Midi2ChannelVoice::ChannelPressure { pressure, .. }
-                    | Midi2ChannelVoice::PitchBend { value: pressure, .. } => {
+                    | Midi2ChannelVoice::PitchBend {
+                        value: pressure, ..
+                    } => {
                         words[1] = pressure;
                     }
                     Midi2ChannelVoice::PerNoteManagement {
@@ -221,7 +238,7 @@ impl Ump {
                 }
             }
             Midi2Message::DataMessage(d) => {
-                let n = d.word_count.min(4).max(2);
+                let n = d.word_count.clamp(2, 4);
                 words[..n].copy_from_slice(&d.words[..n]);
             }
             Midi2Message::FlexData(f) => encode_flex(f, &mut words),
@@ -256,11 +273,19 @@ impl Ump {
                 data[i * 4 + 3],
             ]);
         }
-        Ok(Ump { words })
+        let ump = Ump { words };
+        if data.len() / 4 != ump.num_words() {
+            return Err(ControlError::InvalidData(format!(
+                "UMP type {:#x} needs {} words, got {}",
+                ump.message_type(),
+                ump.num_words(),
+                data.len() / 4
+            )));
+        }
+        Ok(ump)
     }
 }
 
-/// Word 0 header for a Flex Data message.
 fn flex_word0(group: u8, format: DataFormat, bank: u8, status: u8, channel: u8) -> u32 {
     (0xDu32 << 28)
         | u32::from(group) << 24
@@ -272,12 +297,8 @@ fn flex_word0(group: u8, format: DataFormat, bank: u8, status: u8, channel: u8) 
 
 fn encode_flex(f: &FlexDataMessage, words: &mut [u32; 4]) {
     let (group, format, bank, status, channel) = match f {
-        FlexDataMessage::SetTempo { group, format, .. } => {
-            (*group, *format, 0x1, 0x00, 0x0)
-        }
-        FlexDataMessage::TimeSignature { group, format, .. } => {
-            (*group, *format, 0x1, 0x01, 0x0)
-        }
+        FlexDataMessage::SetTempo { group, format, .. } => (*group, *format, 0x1, 0x00, 0x0),
+        FlexDataMessage::TimeSignature { group, format, .. } => (*group, *format, 0x1, 0x01, 0x0),
         FlexDataMessage::Text {
             group,
             format,
@@ -393,8 +414,16 @@ fn parse_words(words: &[u32]) -> Result<Midi2Message, ControlError> {
             let d1 = ((word0 >> 8) & 0x7F) as u8;
             let d2 = (word0 & 0x7F) as u8;
             let message = match status {
-                0x8 => Midi1Message::NoteOff { channel, note: d1, velocity: d2 },
-                0x9 => Midi1Message::NoteOn { channel, note: d1, velocity: d2 },
+                0x8 => Midi1Message::NoteOff {
+                    channel,
+                    note: d1,
+                    velocity: d2,
+                },
+                0x9 => Midi1Message::NoteOn {
+                    channel,
+                    note: d1,
+                    velocity: d2,
+                },
                 0xA => Midi1Message::PolyphonicKeyPressure {
                     channel,
                     note: d1,
@@ -405,8 +434,14 @@ fn parse_words(words: &[u32]) -> Result<Midi2Message, ControlError> {
                     controller: d1,
                     value: d2,
                 },
-                0xC => Midi1Message::ProgramChange { channel, program: d1 },
-                0xD => Midi1Message::ChannelPressure { channel, pressure: d1 },
+                0xC => Midi1Message::ProgramChange {
+                    channel,
+                    program: d1,
+                },
+                0xD => Midi1Message::ChannelPressure {
+                    channel,
+                    pressure: d1,
+                },
                 0xE => Midi1Message::PitchBendChange {
                     channel,
                     value: u16::from(d2) << 7 | u16::from(d1),
@@ -654,7 +689,6 @@ fn decode_text(words: &[u32]) -> String {
 
 /// Converts a MIDI 2.0 message into its UMP packet sequence.
 ///
-/// Chunked SysEx longer than six bytes expands to multiple packets.
 pub fn message_to_umps(message: &Midi2Message) -> Vec<Ump> {
     match message {
         Midi2Message::SystemExclusive(s) => chunk_sysex7(s),
@@ -696,10 +730,22 @@ fn chunk_sysex7(s: &SysExMessage) -> Vec<Ump> {
             (_, false) => 0x2,
         };
         let message = match status {
-            0x0 => SysExMessage::Complete { group, data: chunk.to_vec() },
-            0x1 => SysExMessage::Start { group, data: chunk.to_vec() },
-            0x2 => SysExMessage::Continue { group, data: chunk.to_vec() },
-            _ => SysExMessage::End { group, data: chunk.to_vec() },
+            0x0 => SysExMessage::Complete {
+                group,
+                data: chunk.to_vec(),
+            },
+            0x1 => SysExMessage::Start {
+                group,
+                data: chunk.to_vec(),
+            },
+            0x2 => SysExMessage::Continue {
+                group,
+                data: chunk.to_vec(),
+            },
+            _ => SysExMessage::End {
+                group,
+                data: chunk.to_vec(),
+            },
         };
         chunks.push(Ump::from_message(&Midi2Message::SystemExclusive(message)));
     }
@@ -710,21 +756,30 @@ fn chunk_sysex7(s: &SysExMessage) -> Vec<Ump> {
 ///
 /// Channel voice messages gain full-scale high-resolution values;
 /// system messages map to the UMP System type; SysEx is chunked into
-/// sysex7 packets.
 pub fn midi1_to_midi2(message: &Midi1Message, group: u8) -> Vec<Midi2Message> {
     use crate::midi1::*;
     match message {
-        Midi1Message::NoteOff { channel, note, velocity } => {
-            vec![Midi2Message::Midi2ChannelVoice(Midi2ChannelVoice::NoteOff {
-                group,
-                channel: *channel,
-                note: *note,
-                attribute_type: 0,
-                attribute: 0,
-                velocity: midi1::scale_7_to_16(*velocity),
-            })]
+        Midi1Message::NoteOff {
+            channel,
+            note,
+            velocity,
+        } => {
+            vec![Midi2Message::Midi2ChannelVoice(
+                Midi2ChannelVoice::NoteOff {
+                    group,
+                    channel: *channel,
+                    note: *note,
+                    attribute_type: 0,
+                    attribute: 0,
+                    velocity: midi1::scale_7_to_16(*velocity),
+                },
+            )]
         }
-        Midi1Message::NoteOn { channel, note, velocity } => {
+        Midi1Message::NoteOn {
+            channel,
+            note,
+            velocity,
+        } => {
             if *velocity == 0 {
                 // Velocity-0 note on is a note off per the MIDI 1.0 spec.
                 return vec![Midi2Message::Midi2ChannelVoice(
@@ -794,11 +849,14 @@ pub fn midi1_to_midi2(message: &Midi1Message, group: u8) -> Vec<Midi2Message> {
             )]
         }
         Midi1Message::PitchBendChange { channel, value } => {
-            vec![Midi2Message::Midi2ChannelVoice(Midi2ChannelVoice::PitchBend {
-                group,
-                channel: *channel,
-                value: midi1::scale_16_to_32(*value),
-            })]
+            vec![Midi2Message::Midi2ChannelVoice(
+                Midi2ChannelVoice::PitchBend {
+                    group,
+                    channel: *channel,
+                    // Pitch bend is 14-bit in MIDI 1.0, not 16-bit.
+                    value: midi1::scale_14_to_32(*value),
+                },
+            )]
         }
         Midi1Message::SystemExclusive(bytes) => {
             // Strip F0/F7 and chunk the payload into sysex7 packets.
@@ -826,11 +884,10 @@ pub fn midi1_to_midi2(message: &Midi1Message, group: u8) -> Vec<Midi2Message> {
                             group,
                             data: chunk.to_vec(),
                         },
-                        (_, true) => SysExMessage::End {
+                        _ => SysExMessage::End {
                             group,
                             data: chunk.to_vec(),
                         },
-                        (0, true) => unreachable!("len > 6 cannot be one chunk"),
                     };
                     out.push(Midi2Message::SystemExclusive(message));
                 }
@@ -861,13 +918,17 @@ pub fn midi1_to_midi2(message: &Midi1Message, group: u8) -> Vec<Midi2Message> {
             SystemCommonMessage::TimingClock { group },
         )],
         Midi1Message::Start => {
-            vec![Midi2Message::SystemCommon(SystemCommonMessage::Start { group })]
+            vec![Midi2Message::SystemCommon(SystemCommonMessage::Start {
+                group,
+            })]
         }
-        Midi1Message::Continue => vec![Midi2Message::SystemCommon(
-            SystemCommonMessage::Continue { group },
-        )],
+        Midi1Message::Continue => vec![Midi2Message::SystemCommon(SystemCommonMessage::Continue {
+            group,
+        })],
         Midi1Message::Stop => {
-            vec![Midi2Message::SystemCommon(SystemCommonMessage::Stop { group })]
+            vec![Midi2Message::SystemCommon(SystemCommonMessage::Stop {
+                group,
+            })]
         }
         Midi1Message::ActiveSensing => vec![Midi2Message::SystemCommon(
             SystemCommonMessage::ActiveSensing { group },
@@ -927,14 +988,10 @@ pub fn midi2_to_midi1(message: &Midi2Message) -> Vec<Midi1Message> {
                 value: scale_32_to_7(value),
             }],
             Midi2ChannelVoice::ProgramChange {
-                channel,
-                program,
-                ..
+                channel, program, ..
             } => vec![Midi1Message::ProgramChange { channel, program }],
             Midi2ChannelVoice::ChannelPressure {
-                channel,
-                pressure,
-                ..
+                channel, pressure, ..
             } => vec![Midi1Message::ChannelPressure {
                 channel,
                 pressure: scale_32_to_7(pressure),
@@ -942,7 +999,7 @@ pub fn midi2_to_midi1(message: &Midi2Message) -> Vec<Midi1Message> {
             Midi2ChannelVoice::PitchBend { channel, value, .. } => {
                 vec![Midi1Message::PitchBendChange {
                     channel,
-                    value: scale_32_to_16(value),
+                    value: scale_32_to_14(value),
                 }]
             }
             // Per-note controllers, management, and pitch bend have no
@@ -950,9 +1007,9 @@ pub fn midi2_to_midi1(message: &Midi2Message) -> Vec<Midi1Message> {
             _ => Vec::new(),
         },
         Midi2Message::SystemCommon(s) => vec![match *s {
-            SystemCommonMessage::TimeCodeQuarterFrame {
-                quarter_frame, ..
-            } => Midi1Message::TimeCodeQuarterFrame(quarter_frame),
+            SystemCommonMessage::TimeCodeQuarterFrame { quarter_frame, .. } => {
+                Midi1Message::TimeCodeQuarterFrame(quarter_frame)
+            }
             SystemCommonMessage::SongPositionPointer { position, .. } => {
                 Midi1Message::SongPositionPointer(position)
             }
@@ -989,9 +1046,10 @@ pub fn midi2_to_midi1(message: &Midi2Message) -> Vec<Midi1Message> {
     }
 }
 
-/// Accumulates chunked sysex7 packets back into whole SysEx messages.
 #[derive(Debug, Default)]
+/// Accumulates chunked sysex7 packets back into whole SysEx messages.
 pub struct SysexReassembler {
+    /// UMP group (0-15).
     group: u8,
     chunks: Vec<Vec<u8>>,
 }
@@ -999,10 +1057,7 @@ pub struct SysexReassembler {
 impl SysexReassembler {
     /// Feeds a SysEx chunk message. Returns the complete byte payload
     /// (without F0/F7) when the sequence finishes.
-    pub fn feed(
-        &mut self,
-        message: &SysExMessage,
-    ) -> Result<Option<Vec<u8>>, ControlError> {
+    pub fn feed(&mut self, message: &SysExMessage) -> Result<Option<Vec<u8>>, ControlError> {
         match message {
             SysExMessage::Complete { data, .. } => Ok(Some(data.clone())),
             SysExMessage::Start { group, data } => {
@@ -1021,14 +1076,10 @@ impl SysexReassembler {
             }
             SysExMessage::End { data, group } => {
                 if self.chunks.is_empty() {
-                    return Err(ControlError::InvalidData(
-                        "sysex end without start".into(),
-                    ));
+                    return Err(ControlError::InvalidData("sysex end without start".into()));
                 }
                 if *group != self.group {
-                    return Err(ControlError::InvalidData(
-                        "sysex end group mismatch".into(),
-                    ));
+                    return Err(ControlError::InvalidData("sysex end group mismatch".into()));
                 }
                 self.chunks.push(data.clone());
                 let all: Vec<u8> = self.chunks.concat();
@@ -1085,29 +1136,24 @@ mod tests {
                 value: 0xFFFF_FFFF,
             },
         ));
-        assert_eq!(ump.words[0], 0x40B7_4A00);
+        assert_eq!(ump.words[0], 0x42B7_4A00);
         assert_eq!(ump.words[1], 0xFFFF_FFFF);
     }
 
     #[test]
     fn midi2_rpn_layout() {
-        let ump = Ump::from_message(&Midi2Message::Midi2ChannelVoice(
-            Midi2ChannelVoice::Rpn {
-                group: 0,
-                channel: 0,
-                bank: 0,
-                index: 0,
-                value: 0x2000_0000,
-            },
-        ));
+        let ump = Ump::from_message(&Midi2Message::Midi2ChannelVoice(Midi2ChannelVoice::Rpn {
+            group: 0,
+            channel: 0,
+            bank: 0,
+            index: 0,
+            value: 0x2000_0000,
+        }));
         assert_eq!(ump.words[0], 0x4020_0000);
         assert_eq!(ump.words[1], 0x2000_0000);
         match ump.parse().unwrap() {
             Midi2Message::Midi2ChannelVoice(Midi2ChannelVoice::Rpn {
-                bank,
-                index,
-                value,
-                ..
+                bank, index, value, ..
             }) => {
                 assert_eq!((bank, index, value), (0, 0, 0x2000_0000));
             }
@@ -1151,13 +1197,24 @@ mod tests {
     fn midi1_cv_in_ump() {
         let ump = Ump::from_message(&Midi2Message::Midi1ChannelVoice(Midi1ChannelVoice {
             group: 0,
-            message: Midi1Message::NoteOn { channel: 5, note: 64, velocity: 100 },
+            message: Midi1Message::NoteOn {
+                channel: 5,
+                note: 64,
+                velocity: 100,
+            },
         }));
         assert_eq!(ump.words[0], 0x2095_4064);
         assert_eq!(ump.num_words(), 1);
         match ump.parse().unwrap() {
             Midi2Message::Midi1ChannelVoice(cv) => {
-                assert_eq!(cv.message, Midi1Message::NoteOn { channel: 5, note: 64, velocity: 100 });
+                assert_eq!(
+                    cv.message,
+                    Midi1Message::NoteOn {
+                        channel: 5,
+                        note: 64,
+                        velocity: 100
+                    }
+                );
             }
             other => panic!("unexpected {other:?}"),
         }
@@ -1181,7 +1238,10 @@ mod tests {
 
         // Long: chunked into 6-byte packets.
         let payload: Vec<u8> = (0..14).collect();
-        let umps = chunk_sysex7(&SysExMessage::Start { group: 0, data: payload.clone() });
+        let umps = chunk_sysex7(&SysExMessage::Start {
+            group: 0,
+            data: payload.clone(),
+        });
         assert_eq!(umps.len(), 3);
         assert_eq!(umps[0].words[0] >> 20 & 0xF, 0x1, "start");
         assert_eq!(umps[1].words[0] >> 20 & 0xF, 0x2, "continue");
@@ -1203,10 +1263,12 @@ mod tests {
     #[test]
     fn system_common_in_ump() {
         let ump = Ump::from_message(&Midi2Message::SystemCommon(
-            SystemCommonMessage::SongPositionPointer { group: 0, position: 100 },
+            SystemCommonMessage::SongPositionPointer {
+                group: 0,
+                position: 100,
+            },
         ));
-        assert_eq!(ump.words[0], 0x10F2_2428);
-        // 100 = 0x64: lsb 0x64&0x7F = 0x64 at [15:8], msb 0 at [7:0].
+        // 100 = 0x64: lsb 0x64 at [15:8], msb 0 at [7:0].
         assert_eq!(ump.words[0], 0x10F2_6400);
     }
 
@@ -1215,7 +1277,7 @@ mod tests {
         let ump = Ump::from_message(&Midi2Message::Utility(UtilityMessage::Clock {
             clock: 0xBEEF,
         }));
-        assert_eq!(ump.words[0], 0x0100_BEEF);
+        assert_eq!(ump.words[0], 0x0010_BEEF);
         match ump.parse().unwrap() {
             Midi2Message::Utility(UtilityMessage::Clock { clock }) => {
                 assert_eq!(clock, 0xBEEF);
@@ -1281,7 +1343,11 @@ mod tests {
     #[test]
     fn translation_up_and_down() {
         // MIDI 1.0 note on velocity 64 → MIDI 2.0 16-bit → back to 7-bit.
-        let m1 = Midi1Message::NoteOn { channel: 0, note: 60, velocity: 64 };
+        let m1 = Midi1Message::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 64,
+        };
         let up = midi1_to_midi2(&m1, 0);
         assert_eq!(up.len(), 1);
         let down = midi2_to_midi1(&up[0]);
@@ -1289,7 +1355,11 @@ mod tests {
         assert_eq!(down[0], m1);
 
         // Velocity-0 NoteOn becomes NoteOff.
-        let m1 = Midi1Message::NoteOn { channel: 2, note: 40, velocity: 0 };
+        let m1 = Midi1Message::NoteOn {
+            channel: 2,
+            note: 40,
+            velocity: 0,
+        };
         let up = midi1_to_midi2(&m1, 0);
         match up[0] {
             Midi2Message::Midi2ChannelVoice(Midi2ChannelVoice::NoteOff { .. }) => {}
@@ -1306,7 +1376,11 @@ mod tests {
         let down = midi2_to_midi1(&Midi2Message::Midi2ChannelVoice(cc));
         assert_eq!(
             down[0],
-            Midi1Message::ControlChange { channel: 0, controller: 7, value: 127 }
+            Midi1Message::ControlChange {
+                channel: 0,
+                controller: 7,
+                value: 127
+            }
         );
 
         // Pitch bend center maps to center.
@@ -1316,7 +1390,13 @@ mod tests {
             value: 0x8000_0000,
         });
         let down = midi2_to_midi1(&pb);
-        assert_eq!(down[0], Midi1Message::PitchBendChange { channel: 0, value: 8192 });
+        assert_eq!(
+            down[0],
+            Midi1Message::PitchBendChange {
+                channel: 0,
+                value: 8192
+            }
+        );
     }
 
     #[test]

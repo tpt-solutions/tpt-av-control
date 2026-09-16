@@ -42,7 +42,7 @@ use tpt_av_control_osc::{OscClient, OscMessage, OscArg};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let target = "127.0.0.1:8000".parse()?;
     let mut client = OscClient::new(target)?;
-    let msg = OscMessage::new("/track/1/volume", &[OscArg::Float(0.75)]);
+    let msg = OscMessage::new("/track/1/volume", &[OscArg::Float(0.75)])?;
     client.send(&msg)?;
     Ok(())
 }

@@ -30,12 +30,23 @@ impl OscServer {
     /// Creates a server bound to a specific address.
     pub fn bind(addr: SocketAddr) -> Result<Self, ControlError> {
         let socket = UdpSocket::bind(addr)?;
-        Ok(Self { socket, handler: None })
+        Ok(Self {
+            socket,
+            handler: None,
+        })
     }
 
     /// The bound local address.
     pub fn local_addr(&self) -> Result<SocketAddr, ControlError> {
         Ok(self.socket.local_addr()?)
+    }
+
+    /// Toggles non-blocking mode. In non-blocking mode,
+    /// [`OscServer::recv_packet`] fails with [`ControlError::Io`] and
+    /// [`std::io::ErrorKind::WouldBlock`] when no datagram is pending.
+    pub fn set_nonblocking(&mut self, nonblocking: bool) -> Result<(), ControlError> {
+        self.socket.set_nonblocking(nonblocking)?;
+        Ok(())
     }
 
     /// Sets the handler invoked for every received message. Passing a
@@ -169,8 +180,7 @@ mod tests {
 
     #[tokio::test]
     async fn loopback_async_roundtrip() {
-        let mut server =
-            OscServer::bind(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
+        let mut server = OscServer::bind(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
         let addr = server.local_addr().unwrap();
         let (tx, rx) = mpsc::channel();
         server.set_handler(move |msg, _src| {
@@ -179,11 +189,8 @@ mod tests {
 
         let handle = tokio::spawn(async move {
             // Run the server until the test finishes (or 10 s pass).
-            if let Ok(Err(e)) = tokio::time::timeout(
-                std::time::Duration::from_secs(10),
-                server.run_async(),
-            )
-            .await
+            if let Ok(Err(e)) =
+                tokio::time::timeout(std::time::Duration::from_secs(10), server.run_async()).await
             {
                 eprintln!("run_async failed: {e}");
             }
@@ -228,9 +235,7 @@ mod tests {
             ],
         );
         let addr: SocketAddr = "127.0.0.1:1".parse().unwrap();
-        server
-            .dispatch_bytes(&bundle.encode(), addr)
-            .unwrap();
+        server.dispatch_bytes(&bundle.encode(), addr).unwrap();
         assert_eq!(rx.recv().unwrap(), "/one");
         assert_eq!(rx.recv().unwrap(), "/deep");
     }

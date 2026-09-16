@@ -89,13 +89,19 @@ impl OscMessage {
     pub fn new(address: impl Into<String>, arguments: &[OscArg]) -> Result<Self, ControlError> {
         let address = address.into();
         validate_address(&address)?;
-        Ok(Self { address, arguments: arguments.to_vec() })
+        Ok(Self {
+            address,
+            arguments: arguments.to_vec(),
+        })
     }
 
     /// Creates a message without address validation (for internal use where
     /// the address is already known good).
     pub fn new_unchecked(address: impl Into<String>, arguments: Vec<OscArg>) -> Self {
-        Self { address: address.into(), arguments }
+        Self {
+            address: address.into(),
+            arguments,
+        }
     }
 
     /// The type tag string including the leading comma, e.g. `,iff`.
@@ -338,7 +344,12 @@ pub fn parse_osc_message(data: &[u8]) -> Result<OscMessageRef<'_>, ControlError>
         .ok_or_else(|| ControlError::InvalidData("type tag string must start with ','".into()))?;
     offset = after_tags;
 
-    let msg = OscMessageRef { data, address, tags: tags_str, args_offset: offset };
+    let msg = OscMessageRef {
+        data,
+        address,
+        tags: tags_str,
+        args_offset: offset,
+    };
     // Validate that every argument parses within the buffer up front.
     let mut check = offset;
     for tag in tags_str.bytes() {
@@ -378,7 +389,9 @@ fn read_arg<'a>(
                 })?;
             *offset = start + types::padded_len(size);
             if *offset > data.len() {
-                return Err(ControlError::InvalidData("blob padding overruns packet".into()));
+                return Err(ControlError::InvalidData(
+                    "blob padding overruns packet".into(),
+                ));
             }
             return Ok(OscArgRef::Blob(&data[start..end]));
         }
@@ -483,7 +496,10 @@ mod tests {
 
     #[test]
     fn type_tags_derive() {
-        let m = msg("/t", &[OscArg::Int(1), OscArg::Float(2.0), OscArg::Bool(true)]);
+        let m = msg(
+            "/t",
+            &[OscArg::Int(1), OscArg::Float(2.0), OscArg::Bool(true)],
+        );
         assert_eq!(m.type_tags(), ",ifT");
         let empty = msg("/t", &[]);
         assert_eq!(empty.type_tags(), ",");

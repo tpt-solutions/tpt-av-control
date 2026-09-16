@@ -25,7 +25,7 @@ fn spec_example_oscillator_frequency() {
 #[test]
 fn padding_rule() {
     for len in 0..=9usize {
-        assert_eq!(padded_len(len), (len + 3) / 4 * 4);
+        assert_eq!(padded_len(len), len.div_ceil(4) * 4);
     }
     // Strings encode with their NUL inside the padded region.
     let m = OscMessage::new("/p", &[OscArg::String("ab".into())]).unwrap();
@@ -78,7 +78,9 @@ fn bundle_immediate_and_scheduled() {
 fn bundle_nesting_conformance() {
     let inner = OscBundle::new(
         Some(10),
-        vec![OscPacket::Message(OscMessage::new("/in", &[OscArg::Int(2)]).unwrap())],
+        vec![OscPacket::Message(
+            OscMessage::new("/in", &[OscArg::Int(2)]).unwrap(),
+        )],
     );
     let outer = OscBundle::new(
         Some(20),
@@ -108,7 +110,7 @@ fn full_argument_roundtrip() {
         OscArg::Blob((0..=255u8).cycle().take(1000).collect()),
         OscArg::Long(-9_876_543_210),
         OscArg::Time(0x1234_5678_9ABC_DEF0),
-        OscArg::Double(2.718281828459045),
+        OscArg::Double(std::f64::consts::E),
         OscArg::Symbol("a-symbol".into()),
         OscArg::Char('~'),
         OscArg::Color(0xDEAD_BEEF),
@@ -140,7 +142,11 @@ fn address_validation_rules() {
 fn truncation_is_always_rejected() {
     let m = OscMessage::new(
         "/trunc",
-        &[OscArg::String("abcd".into()), OscArg::Float(1.0), OscArg::Blob(vec![9; 7])],
+        &[
+            OscArg::String("abcd".into()),
+            OscArg::Float(1.0),
+            OscArg::Blob(vec![9; 7]),
+        ],
     )
     .unwrap();
     let bytes = m.encode();
@@ -204,7 +210,11 @@ fn address_pattern_conformance() {
 fn zero_copy_matches_owned() {
     let m = OscMessage::new(
         "/compare",
-        &[OscArg::String("text".into()), OscArg::Blob(vec![1, 2]), OscArg::Double(9.5)],
+        &[
+            OscArg::String("text".into()),
+            OscArg::Blob(vec![1, 2]),
+            OscArg::Double(9.5),
+        ],
     )
     .unwrap();
     let bytes = m.encode();

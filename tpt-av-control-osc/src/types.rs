@@ -105,9 +105,7 @@ pub fn read_null_terminated(data: &[u8], offset: usize) -> Result<(&[u8], usize)
         .iter()
         .position(|&b| b == 0)
         .map(|p| offset + p)
-        .ok_or_else(|| {
-            ControlError::InvalidData("unterminated OSC string".to_string())
-        })?;
+        .ok_or_else(|| ControlError::InvalidData("unterminated OSC string".to_string()))?;
     let payload = &data[offset..nul];
     let after_pad = offset + padded_len(nul - offset + 1);
     if after_pad > data.len() {

@@ -89,10 +89,7 @@ impl Curve {
             Curve::Linear => t,
             Curve::EaseIn => t * t,
             Curve::EaseOut => 1.0 - (1.0 - t) * (1.0 - t),
-            Curve::EaseInOut => {
-                let s = t * t * (3.0 - 2.0 * t);
-                s
-            }
+            Curve::EaseInOut => t * t * (3.0 - 2.0 * t),
             Curve::Exponential { rate } => {
                 let r = rate.max(f32::EPSILON);
                 ((r * t).exp() - 1.0) / (r.exp() - 1.0)
@@ -129,7 +126,11 @@ impl Default for Mapping {
 impl Mapping {
     /// Creates a linear mapping between the two ranges.
     pub fn linear(input_range: (f32, f32), output_range: (f32, f32)) -> Self {
-        Self { input_range, output_range, curve: Curve::Linear }
+        Self {
+            input_range,
+            output_range,
+            curve: Curve::Linear,
+        }
     }
 
     /// Maps `input` through the curve onto the output range, clamped.
@@ -264,10 +265,16 @@ mod tests {
 
     #[test]
     fn curved_mapping_bends() {
-        let m = Mapping { curve: Curve::Exponential { rate: 2.0 }, ..Mapping::default() };
+        let m = Mapping {
+            curve: Curve::Exponential { rate: 2.0 },
+            ..Mapping::default()
+        };
         let mid = m.map(0.5);
         assert!(mid < 0.5, "exponential keeps resolution low: {mid}");
-        let m = Mapping { curve: Curve::Logarithmic { rate: 2.0 }, ..Mapping::default() };
+        let m = Mapping {
+            curve: Curve::Logarithmic { rate: 2.0 },
+            ..Mapping::default()
+        };
         let mid = m.map(0.5);
         assert!(mid > 0.5, "logarithmic keeps resolution high: {mid}");
     }
@@ -275,8 +282,16 @@ mod tests {
     #[test]
     fn automation_interpolates() {
         let mut auto = Automation::new();
-        auto.add_point(AutomationPoint { time: 2.0, value: 1.0, curve: Curve::Linear });
-        auto.add_point(AutomationPoint { time: 0.0, value: 0.0, curve: Curve::Linear });
+        auto.add_point(AutomationPoint {
+            time: 2.0,
+            value: 1.0,
+            curve: Curve::Linear,
+        });
+        auto.add_point(AutomationPoint {
+            time: 0.0,
+            value: 0.0,
+            curve: Curve::Linear,
+        });
         assert_eq!(auto.value_at(-1.0), Some(0.0), "holds before start");
         assert_eq!(auto.value_at(5.0), Some(1.0), "holds after end");
         assert!((auto.value_at(1.0).unwrap() - 0.5).abs() < 1e-6);
@@ -287,8 +302,16 @@ mod tests {
     #[test]
     fn automation_segment_curves_apply() {
         let mut auto = Automation::new();
-        auto.add_point(AutomationPoint { time: 1.0, value: 1.0, curve: Curve::EaseIn });
-        auto.add_point(AutomationPoint { time: 0.0, value: 0.0, curve: Curve::EaseIn });
+        auto.add_point(AutomationPoint {
+            time: 1.0,
+            value: 1.0,
+            curve: Curve::EaseIn,
+        });
+        auto.add_point(AutomationPoint {
+            time: 0.0,
+            value: 0.0,
+            curve: Curve::EaseIn,
+        });
         // t=0.5 through EaseIn: value = 0.25.
         assert!((auto.value_at(0.5).unwrap() - 0.25).abs() < 1e-6);
     }

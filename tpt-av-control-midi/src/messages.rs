@@ -9,54 +9,172 @@
 
 use crate::midi1::Midi1Message;
 
-/// UMP Utility messages (type `0x0`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// UMP Utility messages (type `0x0`).
 pub enum UtilityMessage {
     /// No operation.
     NoOp,
     /// Transport clock tick (16-bit counter).
-    Clock { clock: u16 },
+    /// Transport clock tick counter.
+    /// Clock — see the variant name.
+    Clock {
+        /// Transport clock tick counter.
+        clock: u16,
+    },
     /// Timestamp in milliseconds (16-bit).
-    Timestamp { timestamp: u16 },
+    /// Timestamp value in milliseconds.
+    /// Timestamp — see the variant name.
+    Timestamp {
+        /// Timestamp value in milliseconds.
+        timestamp: u16,
+    },
 }
 
-/// UMP System Common / Real-Time messages (type `0x1`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// UMP System Common / Real-Time messages (type `0x1`).
 pub enum SystemCommonMessage {
     /// MIDI time code quarter frame.
-    TimeCodeQuarterFrame { group: u8, quarter_frame: u8 },
+    /// UMP group (0-15).
+    /// Quarter-frame payload (piece index in the high nibble).
+    /// MIDI time code quarter frame.
+    TimeCodeQuarterFrame {
+        /// UMP group (0-15).
+        group: u8,
+        /// Quarter-frame payload (piece index in the high nibble).
+        quarter_frame: u8,
+    },
     /// Song position pointer (14-bit).
-    SongPositionPointer { group: u8, position: u16 },
+    /// UMP group (0-15).
+    /// Song position in 16th notes (14-bit).
+    /// Song position pointer (14-bit).
+    SongPositionPointer {
+        /// UMP group (0-15).
+        group: u8,
+        /// Song position in 16th notes (14-bit).
+        position: u16,
+    },
     /// Song select.
-    SongSelect { group: u8, song: u8 },
+    /// UMP group (0-15).
+    /// Song number (0-127).
+    /// Song select.
+    SongSelect {
+        /// UMP group (0-15).
+        group: u8,
+        /// Song number (0-127).
+        song: u8,
+    },
     /// Tune request.
-    TuneRequest { group: u8 },
+    /// UMP group (0-15).
+    /// Tune request.
+    TuneRequest {
+        /// UMP group (0-15).
+        group: u8,
+    },
     /// Timing clock.
-    TimingClock { group: u8 },
+    /// UMP group (0-15).
+    /// Timing clock (24 per quarter note).
+    TimingClock {
+        /// UMP group (0-15).
+        group: u8,
+    },
     /// Start transport.
-    Start { group: u8 },
+    /// UMP group (0-15).
+    /// First chunk of a multi-packet SysEx (status `0x1`).
+    Start {
+        /// UMP group (0-15).
+        group: u8,
+    },
     /// Continue transport.
-    Continue { group: u8 },
+    /// UMP group (0-15).
+    /// Middle chunk (status `0x2`).
+    Continue {
+        /// UMP group (0-15).
+        group: u8,
+    },
     /// Stop transport.
-    Stop { group: u8 },
+    /// UMP group (0-15).
+    /// STOP — stop the (optional) cue.
+    Stop {
+        /// UMP group (0-15).
+        group: u8,
+    },
     /// Active sensing.
-    ActiveSensing { group: u8 },
+    /// UMP group (0-15).
+    /// Active sensing keep-alive.
+    ActiveSensing {
+        /// UMP group (0-15).
+        group: u8,
+    },
     /// System reset.
-    SystemReset { group: u8 },
+    /// UMP group (0-15).
+    /// System reset.
+    SystemReset {
+        /// UMP group (0-15).
+        group: u8,
+    },
 }
 
-/// UMP Data messages: System Exclusive carried as 6-byte 7-bit chunks
-/// (type `0x3`), or unknown/extended data preserved losslessly.
+impl SystemCommonMessage {
+    /// The UMP group.
+    pub fn group(&self) -> u8 {
+        match self {
+            SystemCommonMessage::TimeCodeQuarterFrame { group, .. }
+            | SystemCommonMessage::SongPositionPointer { group, .. }
+            | SystemCommonMessage::SongSelect { group, .. }
+            | SystemCommonMessage::TuneRequest { group }
+            | SystemCommonMessage::TimingClock { group }
+            | SystemCommonMessage::Start { group }
+            | SystemCommonMessage::Continue { group }
+            | SystemCommonMessage::Stop { group }
+            | SystemCommonMessage::ActiveSensing { group }
+            | SystemCommonMessage::SystemReset { group } => *group,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// UMP Data messages: System Exclusive carried as 6-byte 7-bit chunks
 pub enum SysExMessage {
     /// A complete SysEx payload in one UMP (status `0x0`).
-    Complete { group: u8, data: Vec<u8> },
+    /// UMP group (0-15).
+    /// Chunk payload bytes (up to 6 per packet).
+    /// A complete SysEx payload in one UMP (status `0x0`).
+    Complete {
+        /// UMP group (0-15).
+        group: u8,
+        /// Chunk payload bytes (up to 6 per packet).
+        data: Vec<u8>,
+    },
     /// First chunk of a multi-packet SysEx (status `0x1`).
-    Start { group: u8, data: Vec<u8> },
+    /// UMP group (0-15).
+    /// Chunk payload bytes (up to 6 per packet).
+    /// First chunk of a multi-packet SysEx (status `0x1`).
+    Start {
+        /// UMP group (0-15).
+        group: u8,
+        /// Chunk payload bytes (up to 6 per packet).
+        data: Vec<u8>,
+    },
     /// Middle chunk (status `0x2`).
-    Continue { group: u8, data: Vec<u8> },
+    /// UMP group (0-15).
+    /// Chunk payload bytes (up to 6 per packet).
+    /// Middle chunk (status `0x2`).
+    Continue {
+        /// UMP group (0-15).
+        group: u8,
+        /// Chunk payload bytes (up to 6 per packet).
+        data: Vec<u8>,
+    },
     /// Final chunk (status `0x3`).
-    End { group: u8, data: Vec<u8> },
+    /// UMP group (0-15).
+    /// Chunk payload bytes (up to 6 per packet).
+    /// Final chunk (status `0x3`).
+    End {
+        /// UMP group (0-15).
+        group: u8,
+        /// Chunk payload bytes (up to 6 per packet).
+        data: Vec<u8>,
+    },
 }
 
 impl SysExMessage {
@@ -70,7 +188,7 @@ impl SysExMessage {
         }
     }
 
-    /// The group the message belongs to.
+    /// The UMP group the message belongs to.
     pub fn group(&self) -> u8 {
         match self {
             SysExMessage::Complete { group, .. }
@@ -93,7 +211,6 @@ impl SysExMessage {
 
 /// MIDI 1.0 channel voice wrapped in a UMP (type `0x2`). The UMP group is
 /// kept alongside the message because `Midi1Message` carries only the
-/// channel nibble.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Midi1ChannelVoice {
     /// UMP group.
@@ -102,125 +219,196 @@ pub struct Midi1ChannelVoice {
     pub message: Midi1Message,
 }
 
-/// MIDI 2.0 high-resolution channel voice messages (type `0x4`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// MIDI 1.0 channel voice wrapped in a UMP (type `0x2`).
 pub enum Midi2ChannelVoice {
     /// Registered per-note controller (opcode `0x0`).
     PerNoteRcc {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Note number (0-127).
         note: u8,
+        /// Enumeration-order index.
         index: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Assignable per-note controller (opcode `0x1`).
     PerNoteAcc {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Note number (0-127).
         note: u8,
+        /// Enumeration-order index.
         index: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Registered parameter number (opcode `0x2`).
     Rpn {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// RPN/NRPN bank number (7-bit).
         bank: u8,
+        /// Enumeration-order index.
         index: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Non-registered parameter number (opcode `0x3`).
     Nrpn {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// RPN/NRPN bank number (7-bit).
         bank: u8,
+        /// Enumeration-order index.
         index: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Relative registered parameter number (opcode `0x4`); `value` is a
     /// 32-bit two's-complement delta.
     RelativeRpn {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// RPN/NRPN bank number (7-bit).
         bank: u8,
+        /// Enumeration-order index.
         index: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Relative non-registered parameter number (opcode `0x5`).
     RelativeNrpn {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// RPN/NRPN bank number (7-bit).
         bank: u8,
+        /// Enumeration-order index.
         index: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Per-note pitch bend (opcode `0x6`).
     PerNotePitchBend {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Note number (0-127).
         note: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Note off with 16-bit velocity (opcode `0x8`).
     NoteOff {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Note number (0-127).
         note: u8,
+        /// Attribute type (0 = none).
         attribute_type: u8,
+        /// Attribute data.
         attribute: u16,
+        /// Velocity, full scale for the protocol version.
         velocity: u16,
     },
     /// Note on with 16-bit velocity (opcode `0x9`).
     NoteOn {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Note number (0-127).
         note: u8,
+        /// Attribute type (0 = none).
         attribute_type: u8,
+        /// Attribute data.
         attribute: u16,
+        /// Velocity, full scale for the protocol version.
         velocity: u16,
     },
     /// Polyphonic key pressure, 32-bit (opcode `0xA`).
     PolyphonicKeyPressure {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Note number (0-127).
         note: u8,
+        /// Pressure, full scale for the protocol version.
         pressure: u32,
     },
     /// Control change, 32-bit (opcode `0xB`).
     ControlChange {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Enumeration-order index.
         index: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Program change with optional bank select (opcode `0xC`).
     ProgramChange {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Vendor-defined option flags.
         option_flags: u8,
+        /// Program (patch) number.
         program: u8,
+        /// Whether the bank select fields are meaningful.
         bank_valid: bool,
+        /// Bank select MSB (7-bit).
         bank_msb: u8,
+        /// Bank select LSB (7-bit).
         bank_lsb: u8,
     },
     /// Channel pressure, 32-bit (opcode `0xD`).
     ChannelPressure {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Pressure, full scale for the protocol version.
         pressure: u32,
     },
     /// Pitch bend, 32-bit centered at `0x8000_0000` (opcode `0xE`).
     PitchBend {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Value, full scale for the protocol version.
         value: u32,
     },
     /// Per-note management (opcode `0xF`): note-on/off attributes and
     /// controller reset flags.
     PerNoteManagement {
+        /// UMP group (0-15).
         group: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Note number (0-127).
         note: u8,
+        /// Vendor-defined option flags.
         option_flags: u8,
     },
 }
@@ -268,7 +456,7 @@ impl Midi2ChannelVoice {
         }
     }
 
-    /// The UMP group.
+    /// The channel (0-15).
     pub fn group(&self) -> u8 {
         match self {
             Midi2ChannelVoice::PerNoteRcc { group, .. }
@@ -290,19 +478,25 @@ impl Midi2ChannelVoice {
     }
 }
 
-/// Flex Data messages (type `0xD`): studio metadata carried in UMPs.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Flex Data messages (type `0xD`): studio metadata carried in UMPs.
 pub enum FlexDataMessage {
     /// Set Tempo (status `0x00`): quarter note duration in 10 ns units.
     SetTempo {
+        /// UMP group (0-15).
         group: u8,
+        /// Multi-packet form (complete/start/continue/end).
         format: DataFormat,
+        /// Quarter note duration in 10 ns units.
         ten_nanosecond_units_per_quarter_note: u32,
     },
     /// Time Signature (status `0x01`).
     TimeSignature {
+        /// UMP group (0-15).
         group: u8,
+        /// Multi-packet form (complete/start/continue/end).
         format: DataFormat,
+        /// Time signature numerator.
         numerator: u8,
         /// Denominator as a power-of-two exponent (e.g. 2 = quarter note).
         denominator_exponent: u8,
@@ -312,26 +506,38 @@ pub enum FlexDataMessage {
     /// Metadata / text messages (statuses `0x04`-`0x0C` performance text,
     /// `0x10`+ project text); the text is 7-bit ASCII.
     Text {
+        /// UMP group (0-15).
         group: u8,
+        /// Multi-packet form (complete/start/continue/end).
         format: DataFormat,
+        /// RPN/NRPN bank number (7-bit).
         bank: u8,
+        /// Message status number.
         status: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// The text payload (7-bit characters).
         text: String,
     },
     /// Any other flex-data message, preserved losslessly.
     Other {
+        /// UMP group (0-15).
         group: u8,
+        /// Multi-packet form (complete/start/continue/end).
         format: DataFormat,
+        /// RPN/NRPN bank number (7-bit).
         bank: u8,
+        /// Message status number.
         status: u8,
+        /// Channel (0-15).
         channel: u8,
+        /// Chunk payload bytes (up to 6 per packet).
         data: [u32; 4],
     },
 }
 
-/// Form of a multi-packet data message (2-bit form field).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Form of a multi-packet data message (2-bit form field).
 pub enum DataFormat {
     /// The whole payload in one packet.
     Complete,
@@ -366,7 +572,6 @@ impl DataFormat {
 }
 
 /// Extended / unknown data messages (type `0x5`), preserved losslessly as
-/// raw words.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DataMessage {
     /// UMP group.
@@ -377,8 +582,8 @@ pub struct DataMessage {
     pub words: [u32; 4],
 }
 
-/// A MIDI 2.0 message as carried in a Universal MIDI Packet.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// A MIDI 2.0 message as carried in a Universal MIDI Packet.
 pub enum Midi2Message {
     /// Utility (type `0x0`).
     Utility(UtilityMessage),

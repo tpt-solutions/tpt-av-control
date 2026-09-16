@@ -20,9 +20,7 @@ pub mod ring;
 pub mod time;
 
 pub use error::ControlError;
-pub use message::{Message, MessageBody, MessageQueue, MessageSource};
-pub use parameter::{
-    Automation, AutomationPoint, Curve, Mapping, ParameterId, ParameterValue,
-};
+pub use message::{Message, MessageBody, MessageQueue, MessageSource, TransportCommand};
+pub use parameter::{Automation, AutomationPoint, Curve, Mapping, ParameterId, ParameterValue};
 pub use ring::SpscRing;
 pub use time::{FrameRate, Timecode, Timestamp};

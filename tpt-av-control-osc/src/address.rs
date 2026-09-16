@@ -16,7 +16,9 @@ const MAX_PATTERN_LEN: usize = 1024;
 impl OscAddressMatcher {
     /// Creates a matcher for the given pattern.
     pub fn new(pattern: &str) -> Self {
-        Self { pattern: pattern.to_string() }
+        Self {
+            pattern: pattern.to_string(),
+        }
     }
 
     /// The pattern this matcher holds.
@@ -70,9 +72,7 @@ fn match_parts(pattern: &[u8], mut pi: usize, address: &[u8], mut ai: usize) -> 
                 // and the end of the address.
                 return std::iter::once(ai)
                     .chain(std::iter::once(address.len()))
-                    .chain(
-                        (ai + 1..address.len()).filter(|&k| address[k - 1] == b'/'),
-                    )
+                    .chain((ai + 1..address.len()).filter(|&k| address[k - 1] == b'/'))
                     .any(|k| match_parts(pattern, pi + 2, address, k));
             }
             b'[' => {
@@ -122,7 +122,10 @@ fn match_char_class(pattern: &[u8], pi: usize, ch: u8) -> Option<usize> {
                 let result = matched != negated;
                 return result.then_some(i + 1);
             }
-            b'-' if i + 1 < pattern.len() && pattern[i + 1] != b']' && i > pi + 1 + usize::from(negated) => {
+            b'-' if i + 1 < pattern.len()
+                && pattern[i + 1] != b']'
+                && i > pi + 1 + usize::from(negated) =>
+            {
                 // Range: needs a start char before the '-'.
                 let start = pattern[i - 1];
                 let end = pattern[i + 1];
