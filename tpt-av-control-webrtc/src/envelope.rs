@@ -25,6 +25,17 @@ pub enum ControlEnvelope {
 
 impl ControlEnvelope {
     /// Binary encoding: 1 type byte + payload. Compact and dependency-free.
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_utils::parameter::{ParameterId, ParameterValue};
+    /// use tpt_av_control_webrtc::{ControlEnvelope, ParameterChangeRequest};
+    /// let envelope = ControlEnvelope::Parameter(ParameterChangeRequest {
+    ///     parameter: ParameterId::new("master.gain"),
+    ///     value: ParameterValue::Float(0.5),
+    /// });
+    /// assert_eq!(ControlEnvelope::decode(&envelope.encode()).unwrap(), envelope);
+    /// ```
     pub fn encode(&self) -> Vec<u8> {
         let mut out = Vec::new();
         match self {
@@ -120,7 +131,13 @@ impl ControlEnvelope {
                     ),
                     0x04 => {
                         let len = read_u32(cursor)? as usize;
-                        let text = data.get(cursor + 4..cursor + 4 + len).ok_or_else(|| {
+                        let start = cursor.checked_add(4).ok_or_else(|| {
+                            ControlError::InvalidData("string offset overflow".into())
+                        })?;
+                        let end = start.checked_add(len).ok_or_else(|| {
+                            ControlError::InvalidData("string length overflow".into())
+                        })?;
+                        let text = data.get(start..end).ok_or_else(|| {
                             ControlError::InvalidData("string value truncated".into())
                         })?;
                         ParameterValue::String(String::from_utf8_lossy(text).into_owned())
@@ -153,8 +170,11 @@ impl ControlEnvelope {
             }
             Some(&0x03) => {
                 let len = read_u32(1)? as usize;
+                let end = 5usize
+                    .checked_add(len)
+                    .ok_or_else(|| ControlError::InvalidData("text length overflow".into()))?;
                 let text = data
-                    .get(5..5 + len)
+                    .get(5..end)
                     .ok_or_else(|| ControlError::InvalidData("text truncated".into()))?;
                 Ok(ControlEnvelope::Text(
                     String::from_utf8_lossy(text).into_owned(),

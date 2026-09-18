@@ -2,7 +2,7 @@
 //! loopback, plus a live generic-MIDI surface when hardware is present.
 //!
 //! ```sh
-//! cargo run -p tpt-av-control-examples --example control_surface
+//! cargo run -p tpt-av-control-examples --bin control_surface
 //! ```
 
 use std::time::Duration;

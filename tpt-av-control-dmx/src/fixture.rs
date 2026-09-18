@@ -113,6 +113,15 @@ pub struct Fixture {
 
 impl Fixture {
     /// Patches a fixture, validating the address fits the universe.
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_dmx::{DmxUniverse, Fixture, FixtureDefinition};
+    /// let par = Fixture::patch(FixtureDefinition::rgbw(), "par 1", 1, 0).unwrap();
+    /// let mut universe = DmxUniverse::new(1);
+    /// par.set_color(&mut universe, 255, 0, 0, 0);
+    /// assert_eq!(universe.get_channel(0), 255); // red at the first channel
+    /// ```
     pub fn patch(
         definition: FixtureDefinition,
         label: impl Into<String>,
@@ -141,7 +150,13 @@ impl Fixture {
     }
 
     fn write(&self, universe: &mut DmxUniverse, offset: usize, value: u8) {
-        universe.set_channel(self.start_address + offset as u16, value);
+        // Defensive re-check: `start_address` is a public field, so writes
+        // must never panic or overflow the universe even if it was mutated
+        // after patching.
+        let index = usize::from(self.start_address) + offset;
+        if index < crate::dmx::DMX_CHANNELS {
+            universe.set_channel(index as u16, value);
+        }
     }
 
     /// Sets master intensity (0-255); a no-op without a Dimmer channel.

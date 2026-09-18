@@ -145,6 +145,15 @@ impl Timecode {
     ///
     /// For drop-frame rates the result is always a *real* (existing) frame
     /// label; dropped labels are never produced.
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_utils::{FrameRate, Timecode};
+    /// // Drop-frame counts are exact in both directions.
+    /// let tc = Timecode::from_frames(17_982, FrameRate::Fps2997Df);
+    /// assert_eq!(tc.to_string(), "00:10:00;00");
+    /// assert_eq!(tc.to_frames(), 17_982);
+    /// ```
     pub fn from_frames(frames: u64, rate: FrameRate) -> Self {
         let fps = u64::from(rate.fps());
         if !rate.is_drop_frame() {

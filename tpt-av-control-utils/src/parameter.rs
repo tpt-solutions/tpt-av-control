@@ -83,6 +83,15 @@ pub enum Curve {
 
 impl Curve {
     /// Applies the curve to `t`, clamped to 0..1.
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_utils::parameter::Curve;
+    /// // Endpoints always hold; EaseIn bends the midpoint down.
+    /// assert_eq!(Curve::EaseIn.apply(0.0), 0.0);
+    /// assert!(Curve::EaseIn.apply(0.5) < 0.5);
+    /// assert_eq!(Curve::EaseIn.apply(1.0), 1.0);
+    /// ```
     pub fn apply(&self, t: f32) -> f32 {
         let t = t.clamp(0.0, 1.0);
         match *self {
@@ -134,6 +143,15 @@ impl Mapping {
     }
 
     /// Maps `input` through the curve onto the output range, clamped.
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_utils::parameter::Mapping;
+    /// let m = Mapping::linear((0.0, 127.0), (-60.0, 0.0));
+    /// assert!((m.map(0.0) - -60.0).abs() < 1e-5);
+    /// assert!((m.map(127.0) - 0.0).abs() < 1e-5);
+    /// assert!((m.map(200.0) - 0.0).abs() < 1e-5, "inputs clamp");
+    /// ```
     pub fn map(&self, input: f32) -> f32 {
         let (in_min, in_max) = self.input_range;
         let (out_min, out_max) = self.output_range;

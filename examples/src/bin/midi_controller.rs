@@ -2,7 +2,7 @@
 //! index given as argv[1]), and prints mapped control events.
 //!
 //! ```sh
-//! cargo run -p tpt-av-control-examples --example midi_controller [in-port-index]
+//! cargo run -p tpt-av-control-examples --bin midi_controller [in-port-index]
 //! ```
 
 use std::time::Duration;

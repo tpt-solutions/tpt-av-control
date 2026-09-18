@@ -86,6 +86,14 @@ pub struct OscMessage {
 
 impl OscMessage {
     /// Creates a message, validating the address.
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_osc::{OscArg, OscMessage};
+    /// let m = OscMessage::new("/track/1/volume", &[OscArg::Float(0.75)]).unwrap();
+    /// assert_eq!(m.type_tags(), ",f");
+    /// assert!(OscMessage::new("no-slash", &[]).is_err());
+    /// ```
     pub fn new(address: impl Into<String>, arguments: &[OscArg]) -> Result<Self, ControlError> {
         let address = address.into();
         validate_address(&address)?;

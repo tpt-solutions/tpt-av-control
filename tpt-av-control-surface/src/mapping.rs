@@ -55,6 +55,18 @@ impl SurfaceMapping {
     }
 
     /// Adds a fader mapping (replacing any with the same CC).
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_surface::{FaderMapping, SurfaceMapping};
+    /// let mut m = SurfaceMapping::new();
+    /// m.add_fader(FaderMapping {
+    ///     cc: 7,
+    ///     parameter: "master.volume".into(),
+    ///     range: (0.0, 1.0),
+    /// });
+    /// assert_eq!(m.fader(7).unwrap().parameter, "master.volume");
+    /// ```
     pub fn add_fader(&mut self, fader: FaderMapping) {
         self.faders.retain(|f| f.cc != fader.cc);
         self.faders.push(fader);

@@ -13,6 +13,11 @@ pub struct OscAddressMatcher {
 /// Recursion cap so hostile patterns can't exhaust the stack.
 const MAX_PATTERN_LEN: usize = 1024;
 
+/// Total match-step budget per `matches()` call. Backtracking through
+/// nested `*`/`//`/`{}` groups is cut off once the budget is spent, which
+/// bounds worst-case match cost for hostile pattern/address pairs.
+const MAX_MATCH_STEPS: u32 = 10_000;
+
 impl OscAddressMatcher {
     /// Creates a matcher for the given pattern.
     pub fn new(pattern: &str) -> Self {
@@ -27,11 +32,30 @@ impl OscAddressMatcher {
     }
 
     /// Checks whether `address` matches the pattern.
+    ///
+    /// Matching is bounded: patterns longer than 1024 bytes never match,
+    /// and backtracking is cut off after a fixed step budget (bounded-false
+    /// on hostile inputs, never a hang).
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_osc::OscAddressMatcher;
+    /// let m = OscAddressMatcher::new("/track/*/volume");
+    /// assert!(m.matches("/track/1/volume"));
+    /// assert!(!m.matches("/track/1/pan"));
+    /// ```
     pub fn matches(&self, address: &str) -> bool {
         if self.pattern.len() > MAX_PATTERN_LEN {
             return false;
         }
-        match_parts(self.pattern.as_bytes(), 0, address.as_bytes(), 0)
+        let mut budget = MAX_MATCH_STEPS;
+        match_parts(
+            self.pattern.as_bytes(),
+            0,
+            address.as_bytes(),
+            0,
+            &mut budget,
+        )
     }
 }
 
@@ -41,9 +65,19 @@ impl std::fmt::Display for OscAddressMatcher {
     }
 }
 
-/// Matches `pattern[pi..]` against `address[ai..]` (byte-wise; all OSC
-/// pattern characters are ASCII).
-fn match_parts(pattern: &[u8], mut pi: usize, address: &[u8], mut ai: usize) -> bool {
+/// Matches `pattern[pi..]` against `address[ai..]`, spending from
+/// `budget` on every step (byte-wise; all OSC pattern characters are ASCII).
+fn match_parts(
+    pattern: &[u8],
+    mut pi: usize,
+    address: &[u8],
+    mut ai: usize,
+    budget: &mut u32,
+) -> bool {
+    if *budget == 0 {
+        return false; // budget exhausted: treat as no-match
+    }
+    *budget -= 1;
     // Iterative fast path over literal characters.
     while pi < pattern.len() {
         let pc = pattern[pi];
@@ -63,7 +97,7 @@ fn match_parts(pattern: &[u8], mut pi: usize, address: &[u8], mut ai: usize) -> 
                         // candidate slice address[ai..k] contains no '/'
                         !address[ai..k].contains(&b'/')
                     })
-                    .any(|k| match_parts(pattern, pi + 1, address, k));
+                    .any(|k| match_parts(pattern, pi + 1, address, k, budget));
             }
             b'/' if pattern.get(pi + 1) == Some(&b'/') => {
                 // '//' matches zero or more whole parts, including their
@@ -73,7 +107,7 @@ fn match_parts(pattern: &[u8], mut pi: usize, address: &[u8], mut ai: usize) -> 
                 return std::iter::once(ai)
                     .chain(std::iter::once(address.len()))
                     .chain((ai + 1..address.len()).filter(|&k| address[k - 1] == b'/'))
-                    .any(|k| match_parts(pattern, pi + 2, address, k));
+                    .any(|k| match_parts(pattern, pi + 2, address, k, budget));
             }
             b'[' => {
                 if ai >= address.len() {
@@ -90,7 +124,7 @@ fn match_parts(pattern: &[u8], mut pi: usize, address: &[u8], mut ai: usize) -> 
             b'{' => {
                 // '{' consumes exactly one character run, so a failed
                 // alternation fails the whole match.
-                return match_alternation(pattern, pi, address, ai).unwrap_or(false);
+                return match_alternation(pattern, pi, address, ai, budget).unwrap_or(false);
             }
             _ => {
                 if ai >= address.len() || address[ai] != pc {
@@ -147,7 +181,13 @@ fn match_char_class(pattern: &[u8], pi: usize, ch: u8) -> Option<usize> {
 
 /// Attempts a `{a,b,c}` alternation at `pattern[pi]`. Returns `Some(matched)`
 /// if the class is well-formed.
-fn match_alternation(pattern: &[u8], pi: usize, address: &[u8], ai: usize) -> Option<bool> {
+fn match_alternation(
+    pattern: &[u8],
+    pi: usize,
+    address: &[u8],
+    ai: usize,
+    budget: &mut u32,
+) -> Option<bool> {
     debug_assert_eq!(pattern[pi], b'{');
     let mut alternatives: Vec<(usize, usize)> = Vec::new(); // (start, end) spans
     let mut start = pi + 1;
@@ -172,7 +212,7 @@ fn match_alternation(pattern: &[u8], pi: usize, address: &[u8], ai: usize) -> Op
     let after_class = i + 1; // index just past '}'
     for (s, e) in alternatives {
         if address[ai..].starts_with(&pattern[s..e])
-            && match_parts(pattern, after_class, address, ai + (e - s))
+            && match_parts(pattern, after_class, address, ai + (e - s), budget)
         {
             return Some(true);
         }

@@ -7,15 +7,53 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Per-crate `README.md` (usage, protocol notes, testing) and `CHANGELOG.md`
+  for all crates, plus crates.io metadata (`readme`, `keywords`,
+  `categories`, `documentation`, `homepage`).
+- **MIDI-CI Property Exchange and Profile Configuration** in
+  `tpt-av-control-midi` (`property` module; see its CHANGELOG).
+- `fuzz/` cargo-fuzz targets for every network-facing parser
+  (`parse_osc_message`, `OscBundle::decode`, `parse_midi1`,
+  `Ump::from_bytes`, `artnet::parse_packet`, `sacn::parse_packet`,
+  `ControlEnvelope::decode`); run with `cargo +nightly fuzz run <target>`.
+- `SECURITY.md` vulnerability-disclosure policy; `.github` issue/PR
+  templates and `CODEOWNERS`; tag-triggered release workflow publishing
+  crates in dependency order; `justfile` mirroring CI steps.
+- CI: `cargo test --doc --workspace` and `cargo doc --workspace
+  --no-deps` (warnings denied) steps; `cargo-deny` now runs the full
+  check (licenses + bans + advisories + sources).
+- `INTEGRATION.md`: the `Message`/`MessageQueue` contract consumed by
+  `tpt-audio`/`tpt-visual`.
+- `examples/spsc_pipeline`: end-to-end network-thread → SPSC ring →
+  real-time-thread demo.
+- Doctested usage examples across all crates' public APIs (14 total).
+
+### Changed
+
+- **Hardening** (details in per-crate CHANGELOGs): bounded OSC address
+  matching, capped `SysexReassembler` streams, `Sacn::recv_universe`
+  datagram slicing, defensive `Fixture` write bounds, checked arithmetic
+  in `ControlEnvelope::decode`.
+
+### Fixed
+
+- Example quick-start commands use `--bin` (the demos are binaries, not
+  `--example` targets); removed the reference to a nonexistent
+  `osc_sender` example.
+
 ## [0.1.0] — initial implementation
 
 ### Added
 
 - **Workspace**: six crates under the `tpt-av-control-` prefix, dual-licensed
-  `MIT OR Apache-2.0`, with CI (build/test on Linux, macOS, Windows; `cargo
-  fmt`; `cargo clippy`; `cargo-deny` license/ban checks), `deny.toml`
+  `MIT OR Apache-2.0`, with per-crate READMEs and CHANGELOGs plus crates.io
+  metadata (keywords/categories), CI (build/test on Linux, macOS, Windows;
+  `cargo fmt`; `cargo clippy`; `cargo-deny` license/ban checks), `deny.toml`
   enforcing permissive-only dependencies (GPL/LGPL/AGPL/MPL and
-  `rtmidi`/`portmidi` banned), README, DESIGN, and CONTRIBUTING docs.
+  `rtmidi`/`portmidi` banned), README, DESIGN, CONTRIBUTING, and
+  INTEGRATION docs.
 
 - **tpt-av-control-utils**
   - `ControlError` error enum shared across the suite.

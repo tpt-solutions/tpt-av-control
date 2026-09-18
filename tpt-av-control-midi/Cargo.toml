@@ -7,6 +7,11 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 description = "MIDI 1.0 and MIDI 2.0 (UMP) implementation for the TPT AV control suite"
+readme = "README.md"
+documentation = "https://docs.rs/tpt-av-control-midi"
+homepage = "https://opensource.tptsolutions.co.nz/"
+keywords = ["midi", "midi2", "ump", "controller", "sysex"]
+categories = ["multimedia::audio", "hardware-support", "parsing"]
 
 [dependencies]
 tpt-av-control-utils = { workspace = true }

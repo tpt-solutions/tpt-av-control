@@ -8,6 +8,7 @@ rust-version.workspace = true
 authors.workspace = true
 publish = false
 description = "Runnable demos for the TPT AV control suite"
+readme = "README.md"
 
 [dependencies]
 tpt-av-control-utils = { workspace = true }

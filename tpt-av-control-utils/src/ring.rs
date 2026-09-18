@@ -74,6 +74,15 @@ impl<T> SpscRing<T> {
         self.len() == 0
     }
 
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_utils::SpscRing;
+    /// let ring: SpscRing<u64> = SpscRing::new(8);
+    /// ring.push(1).unwrap();
+    /// assert_eq!(ring.pop(), Some(1));
+    /// assert_eq!(ring.pop(), None);
+    /// ```
     /// Pushes an item (producer side). Returns it back via [`ControlError`]
     /// if the ring is full. Never allocates or blocks.
     pub fn push(&self, value: T) -> Result<(), ControlError> {

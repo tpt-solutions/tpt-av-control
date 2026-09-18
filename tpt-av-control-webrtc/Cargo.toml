@@ -7,6 +7,11 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 description = "WebRTC data channel transport for networked AV control"
+readme = "README.md"
+documentation = "https://docs.rs/tpt-av-control-webrtc"
+homepage = "https://opensource.tptsolutions.co.nz/"
+keywords = ["webrtc", "data-channel", "remote-control", "network", "real-time"]
+categories = ["multimedia", "network-programming"]
 
 [dependencies]
 tpt-av-control-utils = { workspace = true }

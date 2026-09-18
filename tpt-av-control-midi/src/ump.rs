@@ -67,6 +67,17 @@ impl Ump {
     ///
     /// Note: a full MIDI-CI or chunked SysEx exchange spans several
     /// packets; use [`crate::ump::message_to_umps`] for those.
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_midi::{Midi2ChannelVoice, Midi2Message, Ump};
+    /// let ump = Ump::from_message(&Midi2Message::Midi2ChannelVoice(
+    ///     Midi2ChannelVoice::ControlChange {
+    ///         group: 0, channel: 1, index: 7, value: 0xFFFF_FFFF,
+    ///     },
+    /// ));
+    /// assert_eq!(ump.to_bytes(), [0x40, 0xB1, 0x07, 0x00, 0xFF, 0xFF, 0xFF, 0xFF]);
+    /// ```
     pub fn from_message(message: &Midi2Message) -> Self {
         let mut words = [0u32; 4];
         match message {
@@ -1048,6 +1059,11 @@ pub fn midi2_to_midi1(message: &Midi2Message) -> Vec<Midi1Message> {
 
 #[derive(Debug, Default)]
 /// Accumulates chunked sysex7 packets back into whole SysEx messages.
+///
+/// Streams are capped: a peer that never terminates its chunks is cut off
+/// at [`SysexReassembler::MAX_CHUNKS`] chunks or
+/// [`SysexReassembler::MAX_BYTES`] bytes, so memory stays bounded under
+/// hostile input.
 pub struct SysexReassembler {
     /// UMP group (0-15).
     group: u8,
@@ -1055,6 +1071,15 @@ pub struct SysexReassembler {
 }
 
 impl SysexReassembler {
+    /// Maximum number of chunks accepted in one stream.
+    pub const MAX_CHUNKS: usize = 1024;
+    /// Maximum total payload bytes accepted in one stream (1 MiB).
+    pub const MAX_BYTES: usize = 1024 * 1024;
+
+    fn total_len(&self) -> usize {
+        self.chunks.iter().map(|c| c.len()).sum()
+    }
+
     /// Feeds a SysEx chunk message. Returns the complete byte payload
     /// (without F0/F7) when the sequence finishes.
     pub fn feed(&mut self, message: &SysExMessage) -> Result<Option<Vec<u8>>, ControlError> {
@@ -1071,6 +1096,14 @@ impl SysexReassembler {
                         "sysex continue without start".into(),
                     ));
                 }
+                if self.chunks.len() >= Self::MAX_CHUNKS
+                    || self.total_len().saturating_add(data.len()) > Self::MAX_BYTES
+                {
+                    self.chunks.clear();
+                    return Err(ControlError::InvalidData(
+                        "sysex chunk stream exceeded limits".into(),
+                    ));
+                }
                 self.chunks.push(data.clone());
                 Ok(None)
             }
@@ -1080,6 +1113,14 @@ impl SysexReassembler {
                 }
                 if *group != self.group {
                     return Err(ControlError::InvalidData("sysex end group mismatch".into()));
+                }
+                if self.chunks.len() >= Self::MAX_CHUNKS
+                    || self.total_len().saturating_add(data.len()) > Self::MAX_BYTES
+                {
+                    self.chunks.clear();
+                    return Err(ControlError::InvalidData(
+                        "sysex chunk stream exceeded limits".into(),
+                    ));
                 }
                 self.chunks.push(data.clone());
                 let all: Vec<u8> = self.chunks.concat();

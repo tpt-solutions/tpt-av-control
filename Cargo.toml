@@ -9,6 +9,7 @@ members = [
     "tpt-av-control-webrtc",
     "examples",
 ]
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"

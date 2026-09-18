@@ -7,6 +7,11 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 description = "DMX512, Art-Net, and sACN (E1.31) for the TPT AV control suite"
+readme = "README.md"
+documentation = "https://docs.rs/tpt-av-control-dmx"
+homepage = "https://opensource.tptsolutions.co.nz/"
+keywords = ["dmx", "dmx512", "artnet", "sacn", "lighting"]
+categories = ["multimedia", "hardware-support", "network-programming"]
 
 [dependencies]
 tpt-av-control-utils = { workspace = true }

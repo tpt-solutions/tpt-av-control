@@ -204,8 +204,8 @@ impl Sacn {
     pub fn recv_universe(&mut self) -> Result<DmxUniverse, ControlError> {
         let mut buf = vec![0u8; 2048];
         loop {
-            let (_len, _src) = self.socket.recv_from(&mut buf)?;
-            if let Some(packet) = parse_packet(&buf[..])? {
+            let (len, _src) = self.socket.recv_from(&mut buf)?;
+            if let Some(packet) = parse_packet(&buf[..len])? {
                 let mut u = DmxUniverse::new(packet.universe);
                 u.set_channels(0, &packet.slots);
                 return Ok(u);

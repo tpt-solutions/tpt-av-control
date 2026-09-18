@@ -1,7 +1,6 @@
 //! OSC server demo: receives OSC messages over UDP and prints them.
 //!
-//! Send test messages from any OSC app targeting `udp://127.0.0.1:8000`,
-//! or run `cargo run -p tpt-av-control-examples --example osc_sender`.
+//! Send test messages from any OSC app targeting `udp://127.0.0.1:8000`.
 
 use std::net::SocketAddr;
 use tpt_av_control_osc::{OscArg, OscDispatcher, OscMessage, OscServer};

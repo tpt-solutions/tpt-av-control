@@ -50,7 +50,11 @@ fn injected_control_change_and_note_off_parse_in_order() {
             velocity: 64,
         },
     ];
-    device.inject_all(messages.iter().map(|message| MidiMessage::new(message.to_bytes())));
+    device.inject_all(
+        messages
+            .iter()
+            .map(|message| MidiMessage::new(message.to_bytes())),
+    );
 
     // FIFO order is preserved by the virtual port.
     assert_eq!(parse_next(&device), Ok(messages[0].clone()));
@@ -64,13 +68,37 @@ fn real_world_gesture_stream_parses_without_hardware() {
 
     // A small performance gesture: sustain pedal down, chord, pedal up.
     let gesture = [
-        Midi1Message::ControlChange { channel: 0, controller: 64, value: 127 },
-        Midi1Message::NoteOn { channel: 0, note: 60, velocity: 96 },
-        Midi1Message::NoteOn { channel: 0, note: 64, velocity: 96 },
-        Midi1Message::NoteOn { channel: 0, note: 67, velocity: 96 },
-        Midi1Message::ControlChange { channel: 0, controller: 64, value: 0 },
+        Midi1Message::ControlChange {
+            channel: 0,
+            controller: 64,
+            value: 127,
+        },
+        Midi1Message::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 96,
+        },
+        Midi1Message::NoteOn {
+            channel: 0,
+            note: 64,
+            velocity: 96,
+        },
+        Midi1Message::NoteOn {
+            channel: 0,
+            note: 67,
+            velocity: 96,
+        },
+        Midi1Message::ControlChange {
+            channel: 0,
+            controller: 64,
+            value: 0,
+        },
     ];
-    device.inject_all(gesture.iter().map(|message| MidiMessage::new(message.to_bytes())));
+    device.inject_all(
+        gesture
+            .iter()
+            .map(|message| MidiMessage::new(message.to_bytes())),
+    );
 
     for expected in &gesture {
         assert_eq!(

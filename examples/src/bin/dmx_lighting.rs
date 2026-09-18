@@ -2,7 +2,7 @@
 //! sending it as sACN (or Art-Net) to a console/interface.
 //!
 //! ```sh
-//! cargo run -p tpt-av-control-examples --example dmx_lighting [target-ip]
+//! cargo run -p tpt-av-control-examples --bin dmx_lighting [target-ip]
 //! # target defaults to 127.0.0.1; protocol via TPT_PROTOCOL=sacn|artnet
 //! ```
 

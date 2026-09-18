@@ -280,6 +280,14 @@ impl Midi1Message {
 /// Parses one MIDI 1.0 message from the front of `data`.
 ///
 /// Real-time safe except for [`Midi1Message::SystemExclusive`], which
+/// # Examples
+///
+/// ```
+/// use tpt_av_control_midi::{parse_midi1, Midi1Message};
+/// let m = parse_midi1(&[0x90, 0x3C, 0x40]).unwrap();
+/// assert_eq!(m, Midi1Message::NoteOn { channel: 0, note: 60, velocity: 64 });
+/// assert!(parse_midi1(&[0x90, 0x3C]).is_err(), "truncated");
+/// ```
 pub fn parse_midi1(data: &[u8]) -> Result<Midi1Message, ControlError> {
     if data.is_empty() {
         return Err(ControlError::InvalidData("empty MIDI data".into()));

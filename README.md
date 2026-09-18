@@ -20,14 +20,21 @@
 
 ## Crates
 
+Every crate ships its own README (usage, protocol notes, testing) and
+CHANGELOG alongside its sources.
+
 | Crate | Purpose |
 | :--- | :--- |
-| [`tpt-av-control-utils`](tpt-av-control-utils) | Shared types, errors, timecode, parameter mapping |
-| [`tpt-av-control-osc`](tpt-av-control-osc) | Open Sound Control 1.0/1.1: parse, encode, UDP server/client |
-| [`tpt-av-control-midi`](tpt-av-control-midi) | MIDI 1.0 and MIDI 2.0 (UMP), device I/O, clock, MTC/MSC |
-| [`tpt-av-control-dmx`](tpt-av-control-dmx) | DMX512 universes, Art-Net, sACN/E1.31, fixture definitions |
-| [`tpt-av-control-surface`](tpt-av-control-surface) | Hardware control surfaces (generic MIDI, X32, Stream Deck) |
-| [`tpt-av-control-webrtc`](tpt-av-control-webrtc) | WebRTC data channels for networked control (early) |
+| [`tpt-av-control-utils`](tpt-av-control-utils/README.md) | Shared types, errors, lock-free RT queue, timecode, parameter mapping |
+| [`tpt-av-control-osc`](tpt-av-control-osc/README.md) | Open Sound Control 1.0/1.1: parse, encode, UDP server/client |
+| [`tpt-av-control-midi`](tpt-av-control-midi/README.md) | MIDI 1.0 and MIDI 2.0 (UMP), device I/O, clock, MTC/MSC, MIDI-CI |
+| [`tpt-av-control-dmx`](tpt-av-control-dmx/README.md) | DMX512 universes, Art-Net, sACN/E1.31, fixture definitions |
+| [`tpt-av-control-surface`](tpt-av-control-surface/README.md) | Hardware control surfaces (generic MIDI, X32, Stream Deck, custom) |
+| [`tpt-av-control-webrtc`](tpt-av-control-webrtc/README.md) | WebRTC data channel transport for networked control |
+
+Engines integrating with this suite: see [INTEGRATION.md](INTEGRATION.md)
+for the `Message`/`MessageQueue` contract consumed by `tpt-audio` and
+`tpt-visual`.
 
 ## Quick start
 
@@ -55,10 +62,10 @@ Each crate is independently useful — use just OSC, just MIDI, or just DMX.
 Runnable demos live in the [`examples`](examples) workspace member:
 
 ```sh
-cargo run -p tpt-av-control-examples --example osc_server
-cargo run -p tpt-av-control-examples --example midi_controller
-cargo run -p tpt-av-control-examples --example dmx_lighting
-cargo run -p tpt-av-control-examples --example control_surface
+cargo run -p tpt-av-control-examples --bin osc_server
+cargo run -p tpt-av-control-examples --bin midi_controller
+cargo run -p tpt-av-control-examples --bin dmx_lighting
+cargo run -p tpt-av-control-examples --bin control_surface
 ```
 
 ## Real-time safety

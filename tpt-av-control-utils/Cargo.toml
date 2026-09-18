@@ -7,6 +7,11 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 description = "Shared types, errors, timing, and parameter mapping for the TPT AV control suite"
+readme = "README.md"
+documentation = "https://docs.rs/tpt-av-control-utils"
+homepage = "https://opensource.tptsolutions.co.nz/"
+keywords = ["osc", "midi", "dmx", "timecode", "real-time"]
+categories = ["multimedia", "multimedia::audio", "rust-patterns"]
 
 [dependencies]
 log = { workspace = true }

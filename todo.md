@@ -28,7 +28,7 @@ Tracking checklist for the whole project, organized by phase. License: dual MIT 
   - [x] `tpt-av-control-dmx`
   - [x] `tpt-av-control-surface`
   - [x] `tpt-av-control-webrtc`
-- [x] Add `examples/` directory skeleton (workspace member `examples` with four binaries)
+- [x] Add `examples/` directory skeleton (workspace member `examples` with binaries)
 
 ## Phase 1 — Foundation & OSC
 
@@ -75,7 +75,7 @@ Tracking checklist for the whole project, organized by phase. License: dual MIT 
   - [x] Rpn / Nrpn / RelativeRpn / RelativeNrpn
   - [x] PerNoteManagement
 - [x] `send_ump` on `MidiOutput`
-- [x] MIDI-CI property exchange and capability negotiation *(discovery/reply, endpoint inquiry/info, NAK/ACK; property exchange sub-IDs return `Unsupported` pending M2-115 data-set messages)*
+- [x] MIDI-CI property exchange and capability negotiation *(discovery/reply, endpoint inquiry/info, NAK/ACK; full Property Exchange in Phase 8)*
 - [x] MIDI 1.0 ↔ 2.0 backward-compatibility translation layer
 - [x] Conformance tests against UMP/MIDI 2.0 spec
 
@@ -111,10 +111,45 @@ Tracking checklist for the whole project, organized by phase. License: dual MIT 
 - [x] MIDI Show Control (MSC)
 - [x] Advanced parameter mapping/automation curves *(utils `Curve`/`Automation` + midi `MidiParameterMapper`)*
 
+## Phase 7 — Security & Hardening
+
+- [x] Fix `Sacn::recv_universe` (`tpt-av-control-dmx/src/sacn.rs`) to parse `&buf[..len]` instead of the full fixed buffer
+- [x] Add a chunk-count/total-size cap to `SysexReassembler` (`tpt-av-control-midi/src/ump.rs`, `feed`) to bound memory growth from unterminated `Continue` streams *(1024 chunks / 1 MiB)*
+- [x] Fix CI's `cargo-deny-action` step to run `advisories` (and `sources`), not just `licenses bans` (`.github/workflows/ci.yml` now runs the full `check`; verified locally: `advisories ok, bans ok, licenses ok, sources ok`)
+- [x] Add `cargo-fuzz` targets for `parse_osc_message`, `OscBundle::decode`, `parse_midi1`, `Ump::from_bytes`, `artnet::parse_packet`, `sacn::parse_packet` *(plus `ControlEnvelope::decode`; `fuzz/` is workspace-excluded — run with `cargo +nightly fuzz run <target>`)*
+- [x] Cap wildcard/alternation count (or memoize) in `OscAddressMatcher` (`tpt-av-control-osc/src/address.rs`) to bound worst-case match cost *(10,000-step budget; hostile inputs degrade to no-match)*
+- [x] Make `Fixture::start_address`/`definition` private with a re-validating setter (`tpt-av-control-dmx/src/fixture.rs`), or re-check bounds in `write()` *(took the `write()` re-check option)*
+- [x] Use `checked_add` for the `cursor + 4 + len` arithmetic in `ControlEnvelope::decode` (`tpt-av-control-webrtc/src/envelope.rs`) for 32-bit-target safety
+- [x] Add `SECURITY.md` with a vulnerability-disclosure policy
+
+## Phase 8 — MIDI-CI Property Exchange
+
+- [x] Implement MIDI-CI Property Exchange sub-IDs (M2-115 data-set messages) in `tpt-av-control-midi/src/property.rs`: Get/Set Property Data + Replies, Subscribe/Subscription Data + Subscribe Reply, Notify (0x30-0x37), request-id correlation, 14-bit header sizing, chunked data-set reassembly (`PropertyDataSetAssembler` with caps), dependency-free JSON header field parsing (`header_field`/`header_field_num`)
+- [x] Implement MIDI-CI Profile Configuration messages alongside property exchange (`ProfileConfigMessage`: Inquiry/Reply, Set Profile On/Off + Replies)
+
+## Phase 9 — Adoption & Tooling
+
+- [x] Fix README/example quick-start commands: `cargo run --example X` → `--bin X` (root `README.md`, and doc comments in `examples/src/bin/*.rs`); removed the reference to the nonexistent `osc_sender` example
+- [x] Add `keywords`, `categories`, `documentation`, `homepage` fields to every publishable crate's `Cargo.toml` *(the `examples` package is `publish = false` and carries only `readme`)*
+- [x] Add per-crate `README.md` files and set the `readme` field
+- [x] Add doctested (`cargo test --doc`) usage examples to public APIs across crates *(14 doctests workspace-wide, run in CI)*
+- [x] Add `cargo test --doc --workspace` and `cargo doc --workspace --no-deps` as CI steps
+- [x] Add a `justfile` mirroring CI steps (fmt, clippy, test, doctest, doc, deny, package dry-run, run examples)
+- [x] Add `.github/ISSUE_TEMPLATE/*`, `.github/PULL_REQUEST_TEMPLATE.md`, `CODEOWNERS`
+- [x] Add release automation (tag-triggered `cargo publish` in dependency order via `.github/workflows/release.yml`; needs the `CARGO_REGISTRY_TOKEN` secret)
+- [ ] Wire in the sibling `tpt-av-test-benchmark` (criterion + allocation-tracking harness) to validate the "real-time safe / zero-allocation" claim once that repo is published
+- [ ] Wire in `tpt-av-test-fuzz` proptest harness once that repo is published *(in-repo `fuzz/` libfuzzer targets already cover the parser surfaces)*
+- [x] Add an end-to-end example demonstrating the full network-thread → SPSC-ring → RT-thread pipeline described in `DESIGN.md` §5.3 (`examples/src/bin/spsc_pipeline.rs`)
+
+## Phase 10 — Cleanup
+
+- [x] Delete stray root-level `fdmod.rs` *(and other stray exploration files)*
+- [ ] Revisit `tpt-av-control-midi`'s dev-dependency on `../../tpt-av-test/tpt-av-test-mock` once `tpt-av-test` is published *(pre-push CI blocker — path dependency only resolves via a sibling checkout today)*
+
 ## Release & Ecosystem
 
-- [ ] Tag v0.1.0 *(requires push access; `CHANGELOG.md` entry is ready)*
-- [ ] Publish all crates to crates.io in dependency order *(requires crates.io token)*
-- [x] Verify `cargo-deny` license CI gate is green *(verified locally: `bans ok, licenses ok`; CI runs the same check)*
-- [x] Maintain `CHANGELOG.md` per release
-- [ ] Cross-check integration points with `tpt-audio` and `tpt-visual` *(those repositories are not in this workspace)*
+- [ ] Tag v0.1.0 *(requires push access; root + per-crate `CHANGELOG.md` entries are ready and `cargo package` dry-runs pass for the dependency root)*
+- [ ] Publish all crates to crates.io in dependency order *(requires crates.io token; `release.yml` automates it once the secret is set — utils must land first, then the rest follow)*
+- [x] Verify `cargo-deny` license CI gate is green *(verified locally with the full check: `advisories ok, bans ok, licenses ok, sources ok`)*
+- [x] Maintain `CHANGELOG.md` per release *(root plus per-crate)*
+- [ ] Cross-check integration points with `tpt-audio` and `tpt-visual` *(the message/queue contract they consume is specified in [INTEGRATION.md](INTEGRATION.md); those repos live outside this workspace)*

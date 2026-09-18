@@ -7,6 +7,11 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 description = "Hardware control surface integration for the TPT AV control suite"
+readme = "README.md"
+documentation = "https://docs.rs/tpt-av-control-surface"
+homepage = "https://opensource.tptsolutions.co.nz/"
+keywords = ["midi", "osc", "streamdeck", "control-surface", "hardware"]
+categories = ["multimedia::audio", "hardware-support", "api-bindings"]
 
 [dependencies]
 tpt-av-control-utils = { workspace = true }

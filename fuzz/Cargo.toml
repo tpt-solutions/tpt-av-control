@@ -1,0 +1,74 @@
+[package]
+name = "tpt-av-control-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.tpt-av-control-osc]
+path = "../tpt-av-control-osc"
+
+[dependencies.tpt-av-control-midi]
+path = "../tpt-av-control-midi"
+
+[dependencies.tpt-av-control-dmx]
+path = "../tpt-av-control-dmx"
+
+[dependencies.tpt-av-control-webrtc]
+path = "../tpt-av-control-webrtc"
+
+# Run with: cargo +nightly fuzz run <target> (see https://github.com/rust-fuzz/cargo-fuzz)
+
+[[bin]]
+name = "parse_osc_message"
+path = "fuzz_targets/parse_osc_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "osc_bundle_decode"
+path = "fuzz_targets/osc_bundle_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_midi1"
+path = "fuzz_targets/parse_midi1.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ump_from_bytes"
+path = "fuzz_targets/ump_from_bytes.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "artnet_parse_packet"
+path = "fuzz_targets/artnet_parse_packet.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sacn_parse_packet"
+path = "fuzz_targets/sacn_parse_packet.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "control_envelope_decode"
+path = "fuzz_targets/control_envelope_decode.rs"
+test = false
+doc = false
+bench = false

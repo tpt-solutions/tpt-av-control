@@ -31,6 +31,15 @@ impl DmxUniverse {
     /// # Panics
     /// Panics if `channel >= 512`. For fallible use, see
     /// [`DmxUniverse::try_set_channel`].
+    /// # Examples
+    ///
+    /// ```
+    /// use tpt_av_control_dmx::DmxUniverse;
+    /// let mut u = DmxUniverse::new(1);
+    /// u.set_channel(0, 255);
+    /// assert_eq!(u.get_channel(0), 255);
+    /// assert_eq!(u.get_channel(512), 0, "out of range reads zero");
+    /// ```
     pub fn set_channel(&mut self, channel: u16, value: u8) {
         self.channels[channel as usize] = value;
     }
