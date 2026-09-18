@@ -29,6 +29,14 @@ tokio = { version = "1.37", features = ["full"] }
 midir = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
+# tpt-av-test is a sibling test/tooling repo (public: github.com/tpt-solutions/tpt-av-test).
+# Pinned by `rev` to a specific commit (not a branch) so CI builds are reproducible without
+# requiring a sibling checkout on disk; see todo.md Phase 10 for the rationale/history.
+tpt-av-test-mock = { git = "https://github.com/tpt-solutions/tpt-av-test", rev = "823cd17fe4fd99d3190f51386cc997a294afc7b5" }
+tpt-av-test-benchmark = { git = "https://github.com/tpt-solutions/tpt-av-test", rev = "823cd17fe4fd99d3190f51386cc997a294afc7b5" }
+tpt-av-test-fuzz = { git = "https://github.com/tpt-solutions/tpt-av-test", rev = "823cd17fe4fd99d3190f51386cc997a294afc7b5" }
+criterion = "0.5"
+proptest = "1.4"
 
 [profile.release]
 lto = "thin"

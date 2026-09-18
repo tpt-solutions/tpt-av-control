@@ -44,9 +44,8 @@ cargo deny check licenses bans
 
 CI runs all of the above on Linux, macOS, and Windows. Please make sure it passes locally first.
 
-## Pull requests
+## Contributing
 
-1. Keep PRs focused; one protocol or feature per PR where practical.
-2. Add tests for behavior changes and new protocol paths.
-3. Update `CHANGELOG.md` under the *Unreleased* section.
-4. Document public API items; crates are `#![deny(missing_docs)]`-style documented.
+This project does not accept pull requests. To report a bug, request a
+feature, or propose a change, please open an [issue](.github/ISSUE_TEMPLATE)
+instead.
