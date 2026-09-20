@@ -89,6 +89,11 @@ impl<T> SpscRing<T> {
         let tail = self.tail.load(Ordering::Relaxed);
         let head = self.head.load(Ordering::Acquire);
         if tail.wrapping_sub(head) > self.capacity_mask {
+            #[cfg(feature = "tracing")]
+            tracing::warn!(
+                capacity = self.capacity(),
+                "SpscRing full, dropping pushed item"
+            );
             return Err(ControlError::QueueFull);
         }
         // Producer-only write into the slot one behind the consumer window.

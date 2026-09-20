@@ -17,10 +17,14 @@ categories = ["multimedia::audio", "hardware-support", "parsing"]
 tpt-av-control-utils = { workspace = true }
 log = { workspace = true }
 midir = { workspace = true }
+tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
-serde_json = "1.0"
 tpt-av-test-mock = { workspace = true }
 tpt-av-test-fuzz = { workspace = true }
 tpt-av-test-benchmark = { workspace = true }
 proptest = { workspace = true }
+
+[features]
+default = []
+tracing = ["dep:tracing"]

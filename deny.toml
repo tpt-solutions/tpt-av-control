@@ -36,10 +36,12 @@ deny = [
 ]
 
 [advisories]
-yanked = "warn"
+yanked = "deny"
 
 [sources]
-unknown-registry = "warn"
-unknown-git = "warn"
+unknown-registry = "deny"
+unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = []
+# tpt-av-test is a reviewed, rev-pinned sibling tooling repo (see
+# [workspace.dependencies] in the root Cargo.toml and todo.md Phase 10).
+allow-git = ["https://github.com/tpt-solutions/tpt-av-test"]

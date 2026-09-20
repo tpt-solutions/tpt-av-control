@@ -23,6 +23,11 @@ pub struct OscServer {
 
 impl OscServer {
     /// Creates a server listening on `0.0.0.0:port`.
+    ///
+    /// # Security
+    /// OSC has no authentication or encryption; anyone who can reach this
+    /// port can send it messages. Bind to a trusted interface, or tunnel
+    /// over a VPN on untrusted networks.
     pub fn new(port: u16) -> Result<Self, ControlError> {
         Self::bind(SocketAddr::from(([0, 0, 0, 0], port)))
     }
@@ -75,6 +80,8 @@ impl OscServer {
         let mut buf = vec![0u8; MAX_PACKET_SIZE];
         loop {
             let (len, src) = self.socket.recv_from(&mut buf)?;
+            #[cfg(feature = "tracing")]
+            let _span = tracing::trace_span!("osc_datagram", len, %src).entered();
             self.dispatch_bytes(&buf[..len], src)?;
         }
     }
@@ -87,6 +94,8 @@ impl OscServer {
         let mut buf = vec![0u8; MAX_PACKET_SIZE];
         loop {
             let (len, src) = socket.recv_from(&mut buf).await?;
+            #[cfg(feature = "tracing")]
+            let _span = tracing::trace_span!("osc_datagram", len, %src).entered();
             self.dispatch_bytes(&buf[..len], src)?;
         }
     }
@@ -95,7 +104,14 @@ impl OscServer {
     /// (expanding bundles in order). Bundle time tags are informational:
     /// packets are delivered immediately.
     pub fn dispatch_bytes(&mut self, data: &[u8], src: SocketAddr) -> Result<(), ControlError> {
-        let packet = crate::bundle::parse_packet(data)?;
+        let packet = match crate::bundle::parse_packet(data) {
+            Ok(packet) => packet,
+            Err(err) => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!(len = data.len(), %src, error = %err, "failed to parse OSC packet");
+                return Err(err);
+            }
+        };
         if let Some(handler) = self.handler.as_mut() {
             deliver(handler, &packet, src);
         }

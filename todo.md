@@ -146,6 +146,52 @@ Tracking checklist for the whole project, organized by phase. License: dual MIT 
 - [x] Delete stray root-level `fdmod.rs` *(and other stray exploration files)*
 - [x] Revisit the dev-dependency on `tpt-av-test-*` crates now that `tpt-av-test` is published *(confirmed via `git -C ../tpt-av-test remote -v` + `git ls-remote`: `origin` is `https://github.com/tpt-solutions/tpt-av-test.git`, pushed and public — `GET https://api.github.com/repos/tpt-solutions/tpt-av-test` returns `"private": false`. Switched `tpt-av-test-mock`, `tpt-av-test-benchmark`, and `tpt-av-test-fuzz` from `path = "../../tpt-av-test/..."` to `git = "https://github.com/tpt-solutions/tpt-av-test", rev = "823cd17fe4fd99d3190f51386cc997a294afc7b5"` in the root `Cargo.toml`'s `[workspace.dependencies]`, referenced via `{ workspace = true }` from each consuming crate. Verified this resolves and builds/tests cleanly with no sibling checkout on disk — `cargo build --workspace --all-targets` and `cargo test --workspace` both pass from a clean `Cargo.lock`. This removes the pre-push CI blocker entirely. Note: pinned by commit `rev`, not a branch, so bumping to a newer `tpt-av-test` commit is a deliberate one-line edit in `[workspace.dependencies]`, not automatic.)*
 
+## Phase 11 — Hardening & Adoption
+
+Follow-up from an independent stub/security/adoption review (2026-09-21):
+no leftover stubs or TODOs were found (this phase is pure hardening and
+new capability, not bug-fixing).
+
+- [x] Tighten `deny.toml`: `advisories.yanked`, `sources.unknown-registry`,
+  `sources.unknown-git` from `warn` to `deny`; explicitly allow-list the
+  reviewed `tpt-av-test` git source instead of relying on the removed
+  blanket warn *(verified: `advisories ok, bans ok, licenses ok, sources ok`)*
+- [x] Harden `Ump` parsing (`tpt-av-control-midi/src/ump.rs`): sysex7 and
+  Flex Data arms now use checked `words.get(1)` instead of raw indexing,
+  matching the existing MIDI 2.0 channel-voice arm's style
+- [x] Replace `view.sub_id2.unwrap()` in `tpt-av-control-midi/src/ci.rs`
+  with a proper `ControlError` so a future `parse_sysex` refactor can't
+  reintroduce a panic on attacker-controlled sysex
+- [x] Wire `cargo-fuzz` targets into CI (`.github/workflows/ci.yml`): a
+  matrix job runs each of the 7 fuzz targets for 60s on nightly/ubuntu on
+  every push
+- [x] Surface the "OSC/Art-Net/sACN/WebRTC-envelope are unauthenticated"
+  warning where integrators will actually see it: crate-level `//!` docs,
+  `OscServer::bind`/`ArtNet::new`/`Sacn::new` doc comments, and a
+  "Security" section in each of the `-osc`/`-dmx`/`-webrtc` READMEs (not
+  just `SECURITY.md`)
+- [x] Fix a pre-existing broken rustdoc intra-doc link in
+  `examples/src/bin/midi_controller.rs` (`argv[1]`) that failed
+  `cargo doc --workspace --no-deps` under `-D warnings`
+- [x] Wire up the previously-declared-but-unused `serde` feature: JSON
+  (de)serialization for `FixtureDefinition`/`Fixture` (via validating DTOs
+  so a malformed file can't bypass `FixtureDefinition::new`/`Fixture::patch`
+  bounds checks) and `SurfaceMapping`, plus `FixturePatch`/
+  `SurfaceMapping::from_json_str`/`from_json_reader` loaders
+  (`tpt-av-control-dmx`, `tpt-av-control-surface`)
+- [x] Add `avctl`, a companion debugging CLI (workspace member, not
+  published): `osc send`/`osc monitor`, `midi list`/`midi monitor`,
+  `dmx sniff --protocol artnet|sacn` — thin wrappers over existing public
+  APIs, no new protocol code
+- [x] Add an optional `tracing` feature to `-utils`/`-osc`/`-midi`/`-dmx`:
+  spans on received OSC datagrams, warning events on OSC/Art-Net/sACN
+  parse failures, on unparseable inbound MIDI bytes, and on
+  `SpscRing::push` dropping an item because the ring is full
+- [x] Add zero-hardware quickstart examples: `hello_dmx` (loopback Art-Net
+  cross-fade, no network config or fixtures needed) and `hello_midi`
+  (prints notes from the first connected input in plain English), linked
+  from the root README above the existing quick-start snippet
+
 ## Release & Ecosystem
 
 - [ ] Tag v0.1.0 *(requires push access; root + per-crate `CHANGELOG.md` entries are ready and `cargo package` dry-runs pass for the dependency root)*

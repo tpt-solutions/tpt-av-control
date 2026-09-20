@@ -231,7 +231,9 @@ impl CiMessage {
         }
         let device_id = view.device_id.unwrap_or(0x7F);
         let payload = view.payload;
-        let sub_id2 = view.sub_id2.unwrap();
+        let sub_id2 = view
+            .sub_id2
+            .ok_or_else(|| ControlError::InvalidData("MIDI-CI message missing sub-id2".into()))?;
         if payload.is_empty() {
             return Err(ControlError::InvalidData("MIDI-CI body too short".into()));
         }

@@ -15,9 +15,16 @@ categories = ["multimedia", "hardware-support", "network-programming"]
 
 [dependencies]
 tpt-av-control-utils = { workspace = true }
-log = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
 tpt-av-test-fuzz = { workspace = true }
 tpt-av-test-benchmark = { workspace = true }
 proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json"]
+tracing = ["dep:tracing"]

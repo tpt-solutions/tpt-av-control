@@ -142,6 +142,30 @@ Includes UDP loopback tests for both the blocking and async servers
 (skipped-safe on CI without sockets where applicable), bundle expansion,
 dispatcher routing, and fuzz-ish truncation tables.
 
+## Observability
+
+With the optional `tracing` feature, `OscServer` emits a span per received
+datagram and a warning event on every packet that fails to parse (useful
+for spotting a misbehaving sender on-site, live):
+
+```toml
+[dependencies]
+tpt-av-control-osc = { version = "0.1", features = ["tracing"] }
+tracing-subscriber = "0.3" # in your binary, to actually see the output
+```
+
+```rust,ignore
+tracing_subscriber::fmt().init();
+```
+
+## Security
+
+OSC has no authentication or encryption built into the spec — anyone who can
+reach `OscServer`'s bound UDP port can send it messages. On untrusted
+networks, tunnel OSC over a VPN or another authenticated transport rather
+than exposing it directly. See [SECURITY.md](../SECURITY.md) for the full
+policy.
+
 ## License
 
 Dual-licensed under MIT OR Apache-2.0 — see [LICENSE-MIT](../LICENSE-MIT) and

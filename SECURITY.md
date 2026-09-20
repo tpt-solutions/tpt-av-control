@@ -37,8 +37,14 @@ guarantees are maintained in CI:
 - **Bounded CPU** — OSC address-pattern matching runs under a step budget;
   hostile pattern/address pairs degrade to "no match" rather than hanging.
 - **`forbid(unsafe_code)`** everywhere except the documented SPSC ring.
-- **Dependency policy** — `cargo-deny` blocks copyleft and known-vulnerable
-  crates in CI.
+- **Dependency policy** — `cargo-deny` blocks copyleft, yanked, and
+  known-vulnerable crates, and unrecognized registry/git sources, in CI.
+- **Continuous fuzzing** — `fuzz/fuzz_targets/` (`parse_osc_message`,
+  `osc_bundle_decode`, `parse_midi1`, `ump_from_bytes`,
+  `artnet_parse_packet`, `sacn_parse_packet`, `control_envelope_decode`)
+  runs on every push via `cargo fuzz` in CI, on top of the exhaustive
+  truncation unit tests. Run locally with
+  `cargo +nightly fuzz run <target>`.
 
 ## Scope notes
 

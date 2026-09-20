@@ -77,3 +77,27 @@ jobs:
         with:
           # Full check: licenses + bans + advisories + sources.
           command: check
+
+  fuzz:
+    name: cargo fuzz (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - parse_osc_message
+          - osc_bundle_decode
+          - parse_midi1
+          - ump_from_bytes
+          - artnet_parse_packet
+          - sacn_parse_packet
+          - control_envelope_decode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - run: cargo install cargo-fuzz --locked
+      - run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=60
+        working-directory: .

@@ -199,6 +199,22 @@ let request = session.discovery_request()?; // broadcast Discovery
 nature. Device I/O and the clock run on their own threads — hand results to
 the RT thread via `tpt_av_control_utils::MessageQueue`.
 
+## Observability
+
+With the optional `tracing` feature, `InboundMidi::from_raw` (used by the
+`MidiInput` background callback) emits a warning event whenever raw bytes
+from a device fail to parse as MIDI 1.0:
+
+```toml
+[dependencies]
+tpt-av-control-midi = { version = "0.1", features = ["tracing"] }
+tracing-subscriber = "0.3" # in your binary, to actually see the output
+```
+
+```rust,ignore
+tracing_subscriber::fmt().init();
+```
+
 ## License
 
 Dual-licensed under MIT OR Apache-2.0 — see [LICENSE-MIT](../LICENSE-MIT) and

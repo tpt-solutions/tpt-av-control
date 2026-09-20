@@ -1,5 +1,5 @@
 //! MIDI controller demo: lists devices, opens the first one (or the port
-//! index given as argv[1]), and prints mapped control events.
+//! index given as `argv[1]`), and prints mapped control events.
 //!
 //! ```sh
 //! cargo run -p tpt-av-control-examples --bin midi_controller [in-port-index]

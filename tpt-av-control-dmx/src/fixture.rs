@@ -5,6 +5,7 @@ use tpt_av_control_utils::ControlError;
 
 /// The functional role of one fixture channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FixtureChannel {
     /// Master dimmer.
     Dimmer,
@@ -27,11 +28,32 @@ pub enum FixtureChannel {
 /// A fixture profile: which channels the fixture exposes, in the order
 /// they occupy its DMX footprint.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "FixtureDefinitionDto"))]
 pub struct FixtureDefinition {
     /// Profile name (e.g. "Generic RGBW PAR").
     pub name: String,
     /// Channels in DMX-offset order (offset = index).
     pub channels: Vec<FixtureChannel>,
+}
+
+/// Deserialization-only shape for [`FixtureDefinition`]; routes through
+/// [`FixtureDefinition::new`] so a malformed config file can't construct an
+/// invalid profile (e.g. an empty or oversized channel list).
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+struct FixtureDefinitionDto {
+    name: String,
+    channels: Vec<FixtureChannel>,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<FixtureDefinitionDto> for FixtureDefinition {
+    type Error = ControlError;
+
+    fn try_from(dto: FixtureDefinitionDto) -> Result<Self, Self::Error> {
+        FixtureDefinition::new(dto.name, dto.channels)
+    }
 }
 
 impl FixtureDefinition {
@@ -100,6 +122,8 @@ impl FixtureDefinition {
 /// One addressed fixture instance: a profile patched onto a universe at a
 /// (zero-based) start address.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "FixtureDto"))]
 pub struct Fixture {
     /// The fixture profile.
     pub definition: FixtureDefinition,
@@ -109,6 +133,27 @@ pub struct Fixture {
     pub universe: u16,
     /// Zero-based start address within the universe.
     pub start_address: u16,
+}
+
+/// Deserialization-only shape for [`Fixture`]; routes through
+/// [`Fixture::patch`] so a malformed config file can't construct a fixture
+/// whose footprint overruns its universe.
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+struct FixtureDto {
+    definition: FixtureDefinition,
+    label: String,
+    universe: u16,
+    start_address: u16,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<FixtureDto> for Fixture {
+    type Error = ControlError;
+
+    fn try_from(dto: FixtureDto) -> Result<Self, Self::Error> {
+        Fixture::patch(dto.definition, dto.label, dto.universe, dto.start_address)
+    }
 }
 
 impl Fixture {
@@ -200,6 +245,47 @@ impl Fixture {
     }
 }
 
+/// A list of patched fixtures, loadable from a JSON config file.
+///
+/// Requires the `serde` feature.
+///
+/// # Examples
+///
+/// ```
+/// # #[cfg(feature = "serde")] {
+/// use tpt_av_control_dmx::FixturePatch;
+///
+/// let json = r#"{
+///     "fixtures": [
+///         { "definition": { "name": "RGB", "channels": ["Red", "Green", "Blue"] },
+///           "label": "par 1", "universe": 1, "start_address": 0 }
+///     ]
+/// }"#;
+/// let patch = FixturePatch::from_json_str(json).unwrap();
+/// assert_eq!(patch.fixtures.len(), 1);
+/// assert_eq!(patch.fixtures[0].label, "par 1");
+/// # }
+/// ```
+#[cfg(feature = "serde")]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct FixturePatch {
+    /// The patched fixtures.
+    pub fixtures: Vec<Fixture>,
+}
+
+#[cfg(feature = "serde")]
+impl FixturePatch {
+    /// Parses a fixture patch from a JSON string.
+    pub fn from_json_str(json: &str) -> Result<Self, ControlError> {
+        serde_json::from_str(json).map_err(|e| ControlError::InvalidData(e.to_string()))
+    }
+
+    /// Parses a fixture patch from a JSON reader (e.g. an open file).
+    pub fn from_json_reader<R: std::io::Read>(reader: R) -> Result<Self, ControlError> {
+        serde_json::from_reader(reader).map_err(|e| ControlError::InvalidData(e.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,5 +325,31 @@ mod tests {
         // Read-back.
         assert_eq!(par.get_channel(&u, FixtureChannel::Green), Some(0));
         assert_eq!(par.get_channel(&u, FixtureChannel::Pan), None);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn fixture_patch_round_trips_through_json() {
+        let fixture = Fixture::patch(FixtureDefinition::rgbw(), "par 1", 1, 0).unwrap();
+        let patch = FixturePatch {
+            fixtures: vec![fixture.clone()],
+        };
+        let json = serde_json::to_string(&patch).unwrap();
+        let parsed = FixturePatch::from_json_str(&json).unwrap();
+        assert_eq!(parsed.fixtures, vec![fixture]);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn fixture_patch_rejects_out_of_range_address() {
+        // 511 + 3 = 514 overruns the 512-channel universe: `Fixture::patch`
+        // must reject this even though the DTO itself deserializes fine.
+        let json = r#"{
+            "fixtures": [
+                { "definition": { "name": "RGB", "channels": ["Red", "Green", "Blue"] },
+                  "label": "par 1", "universe": 1, "start_address": 511 }
+            ]
+        }"#;
+        assert!(FixturePatch::from_json_str(json).is_err());
     }
 }

@@ -54,7 +54,9 @@ protocol suite (OSC, MIDI 2.0, DMX, hardware control).
 tpt-av-control-surface = "0.1"
 ```
 
-Optional feature: `serde` — serializes the mapping configuration types.
+Optional feature: `serde` — (de)serializes the mapping configuration types,
+including `SurfaceMapping::from_json_str`/`from_json_reader` for loading a
+mapping from a config file instead of building it in Rust.
 
 ## Usage
 
@@ -150,6 +152,29 @@ assert_eq!(
     panel.read_event().unwrap(),
     Some(ControlEvent::ButtonPress { button: 1 })
 );
+```
+
+### Loading a mapping from a config file
+
+With the `serde` feature, non-Rust integrators (lighting/AV techs) can
+define mappings as JSON instead of code:
+
+```toml
+[dependencies]
+tpt-av-control-surface = { version = "0.1", features = ["serde"] }
+```
+
+```rust
+# #[cfg(feature = "serde")] {
+use tpt_av_control_surface::SurfaceMapping;
+
+let json = r#"{
+    "faders": [{ "cc": 7, "parameter": "master.volume", "range": [0.0, 1.0] }],
+    "buttons": [{ "note": 60, "action": "transport.play", "momentary": true }],
+    "encoders": []
+}"#;
+let mapping = SurfaceMapping::from_json_str(json)?;
+# }
 ```
 
 ## Testing

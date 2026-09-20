@@ -8,6 +8,15 @@
 //! - UDP [`OscServer`] (blocking and tokio async) and [`OscClient`].
 //! - OSC address pattern matching ([`OscAddressMatcher`]) and a
 //!   message [`dispatcher`](dispatch::OscDispatcher).
+//!
+//! # Security
+//!
+//! OSC has no authentication or encryption built into the spec. Anyone who
+//! can reach [`OscServer`]'s bound UDP port can send it messages. On
+//! untrusted networks, tunnel OSC over a VPN or another authenticated
+//! transport rather than exposing it directly. See
+//! [`SECURITY.md`](https://github.com/tpt-solutions/tpt-av-control/blob/master/SECURITY.md)
+//! for the full policy.
 
 #![warn(missing_docs)]
 #![forbid(unsafe_code)]

@@ -44,10 +44,15 @@ pub struct InboundMidi {
 impl InboundMidi {
     /// Builds an inbound message from raw bytes.
     pub fn from_raw(timestamp_us: u64, raw: &[u8]) -> Self {
+        let parsed = parse_midi1(raw);
+        #[cfg(feature = "tracing")]
+        if let Err(ref err) = parsed {
+            tracing::warn!(len = raw.len(), error = %err, "failed to parse inbound MIDI 1.0 bytes");
+        }
         Self {
             timestamp_us,
             raw: raw.to_vec(),
-            message: parse_midi1(raw).ok(),
+            message: parsed.ok(),
         }
     }
 }

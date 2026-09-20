@@ -130,6 +130,32 @@ sacn.send_universe_to("127.0.0.1:5568".parse()?, &universe)?;
   unless** `TPT_DMX_TARGET` (an Art-Net node or sACN listener) and
   `TPT_DMX_PROTOCOL` (`artnet`|`sacn`) are set.
 
+## Loading a fixture patch from a config file
+
+With the `serde` feature, fixture patches can be loaded from JSON instead of
+built in Rust — the constructor validation (`FixtureDefinition::new`,
+`Fixture::patch`) still runs during deserialization, so a malformed file is
+rejected rather than producing an invalid fixture:
+
+```toml
+[dependencies]
+tpt-av-control-dmx = { version = "0.1", features = ["serde"] }
+```
+
+```rust
+# #[cfg(feature = "serde")] {
+use tpt_av_control_dmx::FixturePatch;
+
+let json = r#"{
+    "fixtures": [
+        { "definition": { "name": "RGB", "channels": ["Red", "Green", "Blue"] },
+          "label": "par 1", "universe": 1, "start_address": 0 }
+    ]
+}"#;
+let patch = FixturePatch::from_json_str(json)?;
+# }
+```
+
 ## Protocol notes
 
 - Universes are addressed **zero-based** in this API; the wire carries
@@ -138,6 +164,30 @@ sacn.send_universe_to("127.0.0.1:5568".parse()?, &universe)?;
 - sACN sequence numbers increment per client; the packet layout follows
   ANSI E1.31 with the short (512-slot) form only.
 - Priority defaults to 100 (the E1.31 recommendation).
+
+## Observability
+
+With the optional `tracing` feature, `ArtNet::recv_universe` and
+`Sacn::recv_universe` emit a warning event on every packet that fails to
+parse:
+
+```toml
+[dependencies]
+tpt-av-control-dmx = { version = "0.1", features = ["tracing"] }
+tracing-subscriber = "0.3" # in your binary, to actually see the output
+```
+
+```rust,ignore
+tracing_subscriber::fmt().init();
+```
+
+## Security
+
+Art-Net and sACN have no authentication or encryption built into their
+specs — anyone who can reach `ArtNet`'s or `Sacn`'s bound UDP port can send
+it universe data. On untrusted networks, tunnel these protocols over a VPN
+rather than exposing them directly. See [SECURITY.md](../SECURITY.md) for
+the full policy.
 
 ## License
 

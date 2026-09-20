@@ -123,6 +123,15 @@ channel-close behavior.
 - Parameter semantics (ranges, curves) live in `tpt-av-control-utils`; this
   crate is only the wire shape.
 
+## Security
+
+`ControlEnvelope` is a bare binary format with no authentication or
+encryption of its own — that's expected to come from whatever transport you
+plug into `DataChannelTransport` (a real WebRTC ICE/DTLS/SCTP stack gives
+you this "for free"; `LoopbackTransport` does not, since it's for
+local/testing use only). See [SECURITY.md](../SECURITY.md) for the full
+policy.
+
 ## License
 
 Dual-licensed under MIT OR Apache-2.0 — see [LICENSE-MIT](../LICENSE-MIT) and

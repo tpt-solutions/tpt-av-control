@@ -2,6 +2,7 @@
 
 /// Maps a MIDI CC (or OSC path) fader onto a parameter.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FaderMapping {
     /// MIDI CC number (or control index for non-MIDI surfaces).
     pub cc: u8,
@@ -13,6 +14,7 @@ pub struct FaderMapping {
 
 /// Maps a note/button onto an action.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ButtonMapping {
     /// MIDI note number (or button index).
     pub note: u8,
@@ -25,6 +27,7 @@ pub struct ButtonMapping {
 
 /// Maps a relative CC encoder onto a parameter increment.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EncoderMapping {
     /// MIDI CC number (or encoder index).
     pub cc: u8,
@@ -39,6 +42,7 @@ pub struct EncoderMapping {
 
 /// A declarative mapping configuration for a control surface.
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SurfaceMapping {
     /// Fader mappings (MIDI CC → parameter).
     pub faders: Vec<FaderMapping>,
@@ -52,6 +56,37 @@ impl SurfaceMapping {
     /// An empty mapping.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Parses a surface mapping from a JSON string. Requires the `serde`
+    /// feature.
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "serde")] {
+    /// use tpt_av_control_surface::SurfaceMapping;
+    /// let json = r#"{
+    ///     "faders": [{ "cc": 7, "parameter": "master.volume", "range": [0.0, 1.0] }],
+    ///     "buttons": [], "encoders": []
+    /// }"#;
+    /// let m = SurfaceMapping::from_json_str(json).unwrap();
+    /// assert_eq!(m.fader(7).unwrap().parameter, "master.volume");
+    /// # }
+    /// ```
+    #[cfg(feature = "serde")]
+    pub fn from_json_str(json: &str) -> Result<Self, tpt_av_control_utils::ControlError> {
+        serde_json::from_str(json)
+            .map_err(|e| tpt_av_control_utils::ControlError::InvalidData(e.to_string()))
+    }
+
+    /// Parses a surface mapping from a JSON reader (e.g. an open file).
+    /// Requires the `serde` feature.
+    #[cfg(feature = "serde")]
+    pub fn from_json_reader<R: std::io::Read>(
+        reader: R,
+    ) -> Result<Self, tpt_av_control_utils::ControlError> {
+        serde_json::from_reader(reader)
+            .map_err(|e| tpt_av_control_utils::ControlError::InvalidData(e.to_string()))
     }
 
     /// Adds a fader mapping (replacing any with the same CC).
@@ -138,5 +173,24 @@ mod tests {
         });
         assert_eq!(m.button(60).unwrap().action, "play");
         assert_eq!(m.encoder(16).unwrap().step, 0.5);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn surface_mapping_round_trips_through_json() {
+        let mut m = SurfaceMapping::new();
+        m.add_fader(FaderMapping {
+            cc: 7,
+            parameter: "master.volume".into(),
+            range: (0.0, 1.0),
+        });
+        m.add_button(ButtonMapping {
+            note: 60,
+            action: "play".into(),
+            momentary: true,
+        });
+        let json = serde_json::to_string(&m).unwrap();
+        let parsed = SurfaceMapping::from_json_str(&json).unwrap();
+        assert_eq!(parsed, m);
     }
 }

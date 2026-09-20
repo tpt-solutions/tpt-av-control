@@ -139,6 +139,11 @@ pub struct ArtNet {
 impl ArtNet {
     /// Creates a server bound to `0.0.0.0:port` (use [`ARTNET_PORT`] for a
     /// standard node).
+    ///
+    /// # Security
+    /// Art-Net has no authentication or encryption; anyone who can reach
+    /// this port can send it universe data. Bind to a trusted interface, or
+    /// tunnel over a VPN on untrusted networks.
     pub fn new(port: u16) -> Result<Self, ControlError> {
         let socket = UdpSocket::bind(("0.0.0.0", port))?;
         Ok(Self {
@@ -171,7 +176,15 @@ impl ArtNet {
         let mut buf = vec![0u8; 2048];
         loop {
             let (len, src) = self.socket.recv_from(&mut buf)?;
-            match parse_packet(&buf[..len])? {
+            let packet = match parse_packet(&buf[..len]) {
+                Ok(packet) => packet,
+                Err(err) => {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!(len, %src, error = %err, "failed to parse Art-Net packet");
+                    return Err(err);
+                }
+            };
+            match packet {
                 ArtNetPacket::Dmx { universe, slots } => {
                     let mut u = DmxUniverse::new(universe);
                     u.set_channels(0, &slots);

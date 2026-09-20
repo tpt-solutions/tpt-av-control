@@ -9,6 +9,15 @@
 //! - [`DmxServer`]/[`DmxClient`]: auto-detecting server and protocol
 //!   multiplexing.
 //! - [`Fixture`] definitions for addressing real lighting rigs.
+//!
+//! # Security
+//!
+//! Art-Net and sACN have no authentication or encryption built into their
+//! specs — anyone who can reach [`ArtNet`]'s or [`Sacn`]'s bound UDP port
+//! can send it universe data. On untrusted networks, tunnel these protocols
+//! over a VPN rather than exposing them directly. See
+//! [`SECURITY.md`](https://github.com/tpt-solutions/tpt-av-control/blob/master/SECURITY.md)
+//! for the full policy.
 
 #![warn(missing_docs)]
 #![forbid(unsafe_code)]
@@ -24,6 +33,8 @@ pub mod universe;
 pub use artnet::{ArtNet, ArtNetPacket};
 pub use client::DmxClient;
 pub use dmx::{DmxUniverse, DMX_CHANNELS};
+#[cfg(feature = "serde")]
+pub use fixture::FixturePatch;
 pub use fixture::{Fixture, FixtureChannel, FixtureDefinition};
 pub use sacn::{Cid, Sacn, SacnDataPacket};
 pub use server::{DmxProtocol, DmxServer};

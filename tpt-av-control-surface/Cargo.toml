@@ -17,9 +17,9 @@ categories = ["multimedia::audio", "hardware-support", "api-bindings"]
 tpt-av-control-utils = { workspace = true }
 tpt-av-control-osc = { workspace = true }
 tpt-av-control-midi = { workspace = true }
-log = { workspace = true }
 serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [features]
 default = []
-serde = ["dep:serde"]
+serde = ["dep:serde", "dep:serde_json"]

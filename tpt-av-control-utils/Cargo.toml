@@ -14,9 +14,10 @@ keywords = ["osc", "midi", "dmx", "timecode", "real-time"]
 categories = ["multimedia", "multimedia::audio", "rust-patterns"]
 
 [dependencies]
-log = { workspace = true }
 serde = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
 
 [features]
 default = []
 serde = ["dep:serde"]
+tracing = ["dep:tracing"]

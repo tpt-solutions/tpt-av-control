@@ -477,12 +477,15 @@ fn parse_words(words: &[u32]) -> Result<Midi2Message, ControlError> {
                 )));
             }
             // Two 7-bit bytes in word0 ([15:8], [7:0]), four in word1.
+            let word1 = words.get(1).copied().ok_or_else(|| {
+                ControlError::InvalidData("sysex7 UMP missing second word".into())
+            })?;
             let mut data = Vec::with_capacity(count);
             for i in 0..count {
                 let byte = if i < 2 {
                     (word0 >> (8 - i * 8)) & 0x7F
                 } else {
-                    (words[1] >> (24 - (i - 2) * 8)) & 0x7F
+                    (word1 >> (24 - (i - 2) * 8)) & 0x7F
                 };
                 data.push(byte as u8);
             }
@@ -639,18 +642,21 @@ fn parse_words(words: &[u32]) -> Result<Midi2Message, ControlError> {
             let bank = ((word0 >> 20) & 0x3) as u8;
             let status = (word0 & 0x7F) as u8;
             let channel = ((word0 >> 8) & 0xF) as u8;
+            let word1 = words.get(1).copied().ok_or_else(|| {
+                ControlError::InvalidData("flex data UMP missing second word".into())
+            })?;
             let flex = match status {
                 0x00 => FlexDataMessage::SetTempo {
                     group,
                     format,
-                    ten_nanosecond_units_per_quarter_note: words[1],
+                    ten_nanosecond_units_per_quarter_note: word1,
                 },
                 0x01 => FlexDataMessage::TimeSignature {
                     group,
                     format,
-                    numerator: (words[1] >> 24) as u8,
-                    denominator_exponent: ((words[1] >> 16) & 0x7F) as u8,
-                    thirty_second_notes_per_quarter: ((words[1] >> 8) & 0x7F) as u8,
+                    numerator: (word1 >> 24) as u8,
+                    denominator_exponent: ((word1 >> 16) & 0x7F) as u8,
+                    thirty_second_notes_per_quarter: ((word1 >> 8) & 0x7F) as u8,
                 },
                 0x04..=0x0C => {
                     let text = decode_text(&words[1..]);

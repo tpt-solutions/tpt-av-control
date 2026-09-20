@@ -158,6 +158,11 @@ pub struct Sacn {
 impl Sacn {
     /// Creates a server bound to `0.0.0.0:port` (use [`SACN_PORT`] for a
     /// standard node).
+    ///
+    /// # Security
+    /// sACN has no authentication or encryption; anyone who can reach this
+    /// port can send it universe data. Bind to a trusted interface, or
+    /// tunnel over a VPN on untrusted networks.
     pub fn new(port: u16) -> Result<Self, ControlError> {
         let socket = UdpSocket::bind(("0.0.0.0", port))?;
         Ok(Self {
@@ -205,7 +210,15 @@ impl Sacn {
         let mut buf = vec![0u8; 2048];
         loop {
             let (len, _src) = self.socket.recv_from(&mut buf)?;
-            if let Some(packet) = parse_packet(&buf[..len])? {
+            let parsed = match parse_packet(&buf[..len]) {
+                Ok(parsed) => parsed,
+                Err(err) => {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!(len, error = %err, "failed to parse sACN packet");
+                    return Err(err);
+                }
+            };
+            if let Some(packet) = parsed {
                 let mut u = DmxUniverse::new(packet.universe);
                 u.set_channels(0, &packet.slots);
                 return Ok(u);

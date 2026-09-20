@@ -39,3 +39,11 @@ package crate:
 # Run an example binary (e.g. `just run osc_server`)
 run binary *args:
     cargo run -p tpt-av-control-examples --bin {{binary}} {{args}}
+
+# Run the avctl debugging CLI (e.g. `just avctl osc monitor 0.0.0.0:9000`)
+avctl *args:
+    cargo run -p avctl -- {{args}}
+
+# Run one cargo-fuzz target for a bounded time (e.g. `just fuzz parse_osc_message 30`)
+fuzz target seconds="60":
+    cargo +nightly fuzz run {{target}} -- -max_total_time={{seconds}}

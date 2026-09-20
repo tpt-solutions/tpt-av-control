@@ -36,8 +36,13 @@ boundaries:
 tpt-av-control-utils = "0.1"
 ```
 
-Optional feature: `serde` — derives `Serialize`/`Deserialize` on the mapping
-and value types.
+Optional features:
+- `serde` — derives `Serialize`/`Deserialize` on the mapping and value types.
+- `tracing` — `SpscRing::push` emits a warning event when the ring is full
+  and the item is dropped, the signal you want during a live show ("we're
+  losing messages"). The push side may allocate to format/emit the event;
+  the pop side (real-time thread) is never instrumented and stays
+  allocation-free.
 
 ## Usage
 

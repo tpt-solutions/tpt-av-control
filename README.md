@@ -32,9 +32,24 @@ CHANGELOG alongside its sources.
 | [`tpt-av-control-surface`](tpt-av-control-surface/README.md) | Hardware control surfaces (generic MIDI, X32, Stream Deck, custom) |
 | [`tpt-av-control-webrtc`](tpt-av-control-webrtc/README.md) | WebRTC data channel transport for networked control |
 
+[`avctl`](avctl/README.md) is a companion command-line tool (not published
+to crates.io) for sending/monitoring OSC, MIDI, and DMX traffic on-site —
+useful for checking a console's OSC output or watching MIDI CCs arrive
+without writing any Rust. See its README for the full command list.
+
 Engines integrating with this suite: see [INTEGRATION.md](INTEGRATION.md)
 for the `Message`/`MessageQueue` contract consumed by `tpt-audio` and
 `tpt-visual`.
+
+## Get started in under 5 minutes
+
+No hardware required — these loop back to themselves over a real network
+socket:
+
+```sh
+cargo run -p tpt-av-control-examples --bin hello_dmx   # cross-fades a virtual RGB fixture
+cargo run -p tpt-av-control-examples --bin hello_midi   # prints notes from a connected MIDI device
+```
 
 ## Quick start
 
@@ -66,7 +81,27 @@ cargo run -p tpt-av-control-examples --bin osc_server
 cargo run -p tpt-av-control-examples --bin midi_controller
 cargo run -p tpt-av-control-examples --bin dmx_lighting
 cargo run -p tpt-av-control-examples --bin control_surface
+cargo run -p tpt-av-control-examples --bin hello_dmx
+cargo run -p tpt-av-control-examples --bin hello_midi
 ```
+
+## Config-driven fixtures & mappings
+
+With the `serde` feature, `tpt-av-control-dmx` fixture patches and
+`tpt-av-control-surface` mappings can be loaded from JSON instead of built
+in Rust — useful for non-Rust-fluent lighting/AV techs. See the
+[`tpt-av-control-dmx`](tpt-av-control-dmx/README.md#loading-a-fixture-patch-from-a-config-file)
+and
+[`tpt-av-control-surface`](tpt-av-control-surface/README.md#loading-a-mapping-from-a-config-file)
+READMEs.
+
+## Observability
+
+`tpt-av-control-osc`, `-midi`, `-dmx`, and `-utils` support an optional
+`tracing` feature that emits spans/events for received packets, parse
+failures, and dropped (queue-full) messages — the signals you want when
+diagnosing a live show. See the per-crate READMEs' "Observability"
+sections.
 
 ## Real-time safety
 
