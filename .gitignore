@@ -14,3 +14,5 @@ Thumbs.db
 
 # Logs
 *.log
+# tpt-weave working state
+/.tpt-weave/
